@@ -1,0 +1,20 @@
+{
+  "name": "anchor-study-lock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BUAD112 MVP: a geofenced study timer that makes your Mac progressively more annoying while you are on your phone.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/*.test.js",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/main.js' --test-coverage-exclude='src/overlay.js' test/*.test.js",
+    "build:overlay": "node scripts/build-overlay.js",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

@@ -1,0 +1,234 @@
+<!doctype html>
+<!--
+THESIS: A study timer you can't quietly quit, told as the exam blue book every student knows. It
+refuses the category default of a dark focus-app dashboard with a progress ring.
+OWN-WORLD: Powder-blue cover, navy institutional print in condensed Archivo, white ruled pages with
+a pink margin line, and red pen (Kalam) reserved for phone time, checks, and grades.
+STORY: You fill in the cover, drop an anchor, and study. Picking up your phone gets graded in red,
+louder every 30 seconds, until getting off is the easiest thing on screen.
+FIRST VIEWPORT: Full-bleed cover. ANCHOR printed huge across the top, the blanks (course, minutes,
+tuition) in a printed box, the instructions box, one navy "Drop anchor and start" button.
+FORM: Blue book + grading rubric, first on the list; staging = cover / open page / graded cover.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anchor</title>
+  <meta name="description" content="A study timer you can't quit inside 50 meters of where you started.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/kalam-700-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" type="module"></script>
+</head>
+<body data-view="loading">
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-anchor" viewBox="0 0 24 24"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 13.5c2.2 1.4 3.6 3.2 4.6 5.2C11 12.6 15 7.6 20.5 4.5"/></symbol>
+  </svg>
+
+  <p class="offline" id="offline" role="status" hidden>Lost touch with Anchor. Reconnecting… (is <code>npm start</code> still running?)</p>
+
+  <!-- ============ COVER: set up a session ============ -->
+  <main class="cover" id="cover" aria-labelledby="cover-title" hidden>
+    <div class="cover__sheet">
+      <header class="cover__masthead">
+        <h1 class="cover__title" id="cover-title">Anchor</h1>
+        <p class="cover__sub">Study session book. Stop unlocks only when you walk away.</p>
+        <p class="cover__book">Book <span>1</span> of <span>1</span></p>
+      </header>
+
+      <form class="cover__form" id="start-form" novalidate>
+        <div class="blanks">
+          <label class="blank blank--wide">
+            <span class="blank__label">Course</span>
+            <input class="blank__input" name="courseName" maxlength="40" autocomplete="off" value="BUAD 112">
+          </label>
+          <label class="blank blank--short">
+            <span class="blank__label">Minutes</span>
+            <input class="blank__input" name="studyMinutes" type="number" inputmode="numeric" min="1" max="240" step="1" value="25" required>
+          </label>
+          <label class="blank blank--short">
+            <span class="blank__label">Tuition / min</span>
+            <span class="blank__prefix" aria-hidden="true">$</span>
+            <input class="blank__input" name="dollarsPerMinute" type="number" inputmode="decimal" min="0" max="100" step="0.05" value="2.50" aria-describedby="tuition-hint">
+          </label>
+          <div class="blank blank--status" aria-live="polite">
+            <span class="blank__label">Anchor</span>
+            <span class="anchor-status" id="anchor-status" data-state="pending">
+              <svg class="icon"><use href="#i-pin"/></svg>
+              <span id="anchor-status-text">Finding where you are…</span>
+            </span>
+          </div>
+        </div>
+        <p class="cover__hint" id="tuition-hint">Tuition per minute powers the cost counter. Use your own number; tuition divided by class hours works.</p>
+
+        <section class="instructions" aria-labelledby="instructions-title">
+          <h2 class="instructions__title" id="instructions-title">Instructions</h2>
+          <ol class="instructions__list">
+            <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
+            <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 30 seconds on it, this Mac gets worse: red, ticking, talking, blur, siren.</li>
+            <li>Getting off clears everything instantly. The step you reached cools down one step per 30 seconds, so quick toggles don't reset it.</li>
+          </ol>
+        </section>
+
+        <div class="cover__actions">
+          <button class="btn btn--ink btn--big" type="submit" id="start-btn">
+            <svg class="icon"><use href="#i-anchor"/></svg>
+            Drop anchor and start
+          </button>
+          <p class="form-error" id="start-error" role="alert"></p>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <!-- ============ SESSION: the open page ============ -->
+  <main class="desk" id="session" aria-label="Study session" hidden>
+    <article class="page" id="page">
+      <header class="page__head">
+        <p class="page__course" id="course-name">BUAD 112</p>
+        <p class="stamp" id="speed-stamp" hidden>Demo speed 6x</p>
+        <p class="lockline" id="lockline" data-locked="true">
+          <svg class="icon"><use href="#i-lock" id="lock-icon"/></svg>
+          <span id="lock-text">Stop locked</span>
+        </p>
+      </header>
+
+      <div class="page__body">
+        <section class="study" aria-labelledby="study-label">
+          <p class="study__label" id="study-label">Left to study</p>
+          <p class="study__time" id="study-time" aria-live="off">25:00</p>
+          <p class="pen-note" id="penalty-note" hidden></p>
+
+          <div class="phone-control" id="phone-control" data-on="false">
+            <button class="btn btn--pen btn--big" type="button" id="phone-btn" aria-pressed="false">
+              <svg class="icon"><use href="#i-phone"/></svg>
+              <span id="phone-btn-text">I'm on my phone</span>
+            </button>
+            <div class="stint" id="stint" aria-live="off">
+              <p class="stint__time" id="stint-time">0:00</p>
+              <p class="stint__label">on your phone</p>
+            </div>
+          </div>
+          <p class="phone-meta" id="phone-meta">No pickups yet.</p>
+
+          <div class="confess" id="confess" hidden>
+            <p class="confess__prompt">Type this to make the popup leave:</p>
+            <p class="confess__phrase" id="confess-phrase"></p>
+            <form class="confess__form" id="confess-form">
+              <input class="confess__input" id="confess-input" name="text" maxlength="200" autocomplete="off" aria-label="Type the sentence">
+              <button class="btn btn--outline" type="submit">Confess</button>
+            </form>
+          </div>
+
+          <div class="stop">
+            <button class="btn btn--outline" type="button" id="stop-btn" disabled>
+              <svg class="icon"><use href="#i-lock" id="stop-icon"/></svg>
+              <span id="stop-text">Stop studying</span>
+            </button>
+            <p class="stop__why" id="stop-why"></p>
+          </div>
+          <p class="form-error" id="session-error" role="alert"></p>
+        </section>
+
+        <aside class="rubric" aria-labelledby="rubric-title">
+          <h2 class="rubric__title" id="rubric-title">Phone rubric</h2>
+          <p class="rubric__sub" id="rubric-sub">One step every 30 seconds on your phone.</p>
+          <ol class="rubric__list" id="rubric-list"></ol>
+        </aside>
+      </div>
+    </article>
+
+    <figure class="phone" id="phone" data-on="false" aria-label="Your phone">
+      <div class="phone__screen">
+        <div class="phone__lock">
+          <p class="phone__clock" id="phone-clock">9:41</p>
+          <p class="phone__date" id="phone-date">Thursday</p>
+          <div class="phone__notif">
+            <p class="phone__notif-app">Anchor</p>
+            <p class="phone__notif-text">Studying. Stop is locked here.</p>
+          </div>
+        </div>
+        <div class="phone__feed" aria-hidden="true">
+          <div class="feed" id="feed"></div>
+        </div>
+      </div>
+      <figcaption class="phone__caption">Demo feed, made up</figcaption>
+    </figure>
+  </main>
+
+  <!-- ============ SUMMARY: the graded cover ============ -->
+  <main class="cover cover--graded" id="summary" aria-labelledby="summary-title" hidden>
+    <div class="cover__sheet">
+      <header class="cover__masthead">
+        <h1 class="cover__title" id="summary-title">Anchor</h1>
+        <p class="cover__sub" id="summary-sub">Session handed back.</p>
+        <p class="cover__book">Book <span>1</span> of <span>1</span></p>
+      </header>
+
+      <div class="graded">
+        <div class="grade-box" aria-label="Focus grade">
+          <p class="grade-box__label">Grade</p>
+          <div class="grade-mark">
+            <p class="grade-box__grade" id="grade">A</p>
+            <svg class="grade-box__circle" viewBox="0 0 200 160" aria-hidden="true"><path d="M138 22C92 6 34 22 20 66c-13 41 22 76 76 78 52 2 92-24 90-64-2-31-28-52-66-58"/></svg>
+          </div>
+          <p class="grade-box__score"><span id="score">100</span>% focused</p>
+        </div>
+
+        <dl class="filled" id="filled">
+          <div class="filled__row"><dt>Course</dt><dd id="sum-course">BUAD 112</dd></div>
+          <div class="filled__row"><dt>Studied</dt><dd id="sum-studied">25:00</dd></div>
+          <div class="filled__row"><dt>On your phone</dt><dd class="is-pen" id="sum-phone">0:00</dd></div>
+          <div class="filled__row"><dt>Pickups</dt><dd class="is-pen" id="sum-pickups">0</dd></div>
+          <div class="filled__row"><dt>Penalty added</dt><dd class="is-pen" id="sum-penalty">0:00</dd></div>
+          <div class="filled__row"><dt>Tuition burned</dt><dd class="is-pen" id="sum-cost">$0.00</dd></div>
+          <div class="filled__row"><dt>Worst step</dt><dd class="is-pen" id="sum-worst">None</dd></div>
+        </dl>
+      </div>
+
+      <p class="remark" id="remark"></p>
+
+      <div class="cover__actions">
+        <button class="btn btn--ink btn--big" type="button" id="again-btn">
+          <svg class="icon"><use href="#i-anchor"/></svg>
+          Start a new session
+        </button>
+        <p class="form-error" id="summary-error" role="alert"></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- In-tab fallback effects, used only when the Mac-wide overlay is unavailable -->
+  <div class="fx" id="fx" aria-hidden="true"></div>
+
+  <!-- ============ Presenter controls ============ -->
+  <aside class="presenter" id="presenter" aria-label="Presenter controls">
+    <button class="presenter__toggle" type="button" id="presenter-toggle" aria-expanded="false" aria-controls="presenter-body">Presenter</button>
+    <div class="presenter__body" id="presenter-body" hidden>
+      <p class="presenter__note">Demo only. These exist so the class can see it without waiting or walking.</p>
+      <fieldset class="presenter__group">
+        <legend>Speed</legend>
+        <div class="seg" role="group" aria-label="Demo speed">
+          <button class="seg__btn" type="button" data-speed="1" aria-pressed="true">1x</button>
+          <button class="seg__btn" type="button" data-speed="6" aria-pressed="false">6x (a step every 5 s)</button>
+        </div>
+      </fieldset>
+      <fieldset class="presenter__group">
+        <legend>Walk away</legend>
+        <label class="range">
+          <input type="range" id="sim-range" min="0" max="120" step="1" value="0" aria-describedby="sim-value">
+          <output id="sim-value">Real location</output>
+        </label>
+        <button class="btn btn--outline btn--small" type="button" id="sim-reset">Use real location</button>
+      </fieldset>
+    </div>
+  </aside>
+</body>
+</html>

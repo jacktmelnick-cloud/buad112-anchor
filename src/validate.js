@@ -1,0 +1,72 @@
+/**
+ * Input validation for everything that crosses the HTTP boundary.
+ * Each parser returns `{ ok: true, value }` or `{ ok: false, error }` with a message fit to show a person.
+ */
+import { DEFAULTS, LIMITS, DEMO_SPEEDS } from './config.js';
+
+const ok = (value) => ({ ok: true, value });
+const fail = (error) => ({ ok: false, error });
+
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isFiniteNumber = (v) => typeof v === 'number' && Number.isFinite(v);
+const inRange = (v, min, max) => isFiniteNumber(v) && v >= min && v <= max;
+
+/** @param {unknown} body */
+export function parseStart(body) {
+  if (!isPlainObject(body)) return fail('Send the session settings as a JSON object.');
+  const { studyMinutes, dollarsPerMinute = DEFAULTS.dollarsPerMinute, courseName = DEFAULTS.courseName } = body;
+
+  const minutesOk =
+    Number.isInteger(studyMinutes) && studyMinutes >= LIMITS.minStudyMinutes && studyMinutes <= LIMITS.maxStudyMinutes;
+  if (!minutesOk) {
+    return fail(`Study minutes must be a whole number from ${LIMITS.minStudyMinutes} to ${LIMITS.maxStudyMinutes}.`);
+  }
+  if (!inRange(dollarsPerMinute, 0, LIMITS.maxDollarsPerMinute)) {
+    return fail(`Tuition per minute must be between $0 and $${LIMITS.maxDollarsPerMinute}.`);
+  }
+  // Strip control, zero-width, and direction-override characters: the name is drawn over every app.
+  const cleaned = typeof courseName === 'string' ? courseName.replace(/\p{C}/gu, '').trim() : null;
+  if (cleaned === null || cleaned.length > LIMITS.maxCourseName) {
+    return fail(`Course name must be ${LIMITS.maxCourseName} characters or fewer.`);
+  }
+  const name = cleaned || DEFAULTS.courseName;
+  return ok({ studyMinutes, dollarsPerMinute, courseName: name });
+}
+
+/** @param {unknown} body */
+export function parseLocation(body) {
+  if (!isPlainObject(body)) return fail('Send the location as a JSON object.');
+  const { lat, lng, accuracy } = body;
+  if (!inRange(lat, -90, 90) || !inRange(lng, -180, 180)) return fail('That location is not a real coordinate.');
+  if (!inRange(accuracy, 0, LIMITS.maxAccuracyM)) return fail('Location accuracy must be a positive number of meters.');
+  return ok({ lat, lng, accuracy });
+}
+
+/** @param {unknown} body */
+export function parsePhone(body) {
+  if (!isPlainObject(body) || typeof body.onPhone !== 'boolean') return fail('onPhone must be true or false.');
+  return ok(body.onPhone);
+}
+
+/** @param {unknown} body */
+export function parseDemo(body) {
+  if (!isPlainObject(body)) return fail('Send the demo settings as a JSON object.');
+  const hasSpeed = 'speed' in body;
+  const hasDistance = 'simulatedM' in body;
+  if (!hasSpeed && !hasDistance) return fail('Send a demo speed, a simulated distance, or both.');
+  if (hasSpeed && !DEMO_SPEEDS.includes(body.speed)) return fail(`Demo speed must be one of ${DEMO_SPEEDS.join(', ')}.`);
+  if (hasDistance && body.simulatedM !== null && !inRange(body.simulatedM, 0, LIMITS.maxSimulatedM)) {
+    return fail(`Simulated distance must be from 0 to ${LIMITS.maxSimulatedM} meters.`);
+  }
+  return ok({
+    ...(hasSpeed ? { speed: body.speed } : {}),
+    ...(hasDistance ? { simulatedM: body.simulatedM } : {}),
+  });
+}
+
+/** @param {unknown} body */
+export function parseConfess(body) {
+  if (!isPlainObject(body) || typeof body.text !== 'string') return fail('Type the sentence to confess.');
+  if (body.text.length > LIMITS.maxConfession) return fail('That is longer than the sentence.');
+  return ok(body.text);
+}
