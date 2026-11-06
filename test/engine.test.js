@@ -92,15 +92,15 @@ describe('phone escalation', () => {
     assert.equal(snap.phone.level, snap.phone.maxLevel);
   });
 
-  test('resets fully to step 1 after a whole grace period off the phone', () => {
+  test('holds the step while off the phone, however long', () => {
     const onFor = 3 * LEVEL_MS + 5000; // level 3
     let s = setPhone(running(), true, T0);
     s = advance(s, T0, onFor);
     s = setPhone(s, false, T0 + onFor);
-    s = advance(s, T0 + onFor, LEVEL_MS + 250);
-    const snap = snapshot(s, T0 + onFor + LEVEL_MS + 250);
-    assert.equal(snap.phone.level, 0);
-    assert.equal(snap.phone.stintMs, 0);
+    s = advance(s, T0 + onFor, 4 * LEVEL_MS);
+    const snap = snapshot(s, T0 + onFor + 4 * LEVEL_MS);
+    assert.equal(snap.phone.level, 3);
+    assert.equal(snap.phone.stintMs, onFor);
   });
 
   test('a quick off-and-on toggle does not reset the level', () => {
@@ -113,13 +113,13 @@ describe('phone escalation', () => {
     assert.equal(snapshot(s, T0 + onFor + 2000).phone.level, 2, 'a quick return keeps the step');
   });
 
-  test('counts pickups only when going onto the phone, and a quick return is the same pickup', () => {
+  test('counts a pickup each time you go onto the phone, not for repeated presses', () => {
     let s = running();
     s = setPhone(s, true, T0);
     s = setPhone(s, true, T0 + 10);
     s = setPhone(s, false, T0 + 20);
     s = setPhone(s, true, T0 + 30);
-    assert.equal(s.pickups, 1);
+    assert.equal(s.pickups, 2);
   });
 
   test('keeps the phone stint and total separate from the study timer', () => {
@@ -211,7 +211,7 @@ describe('snitch', () => {
     assert.equal(snapshot(s, T0 + reach + SNITCH_COUNTDOWN_MS + 500).snitch.phase, 'sent');
   });
 
-  test('getting off the phone during the countdown cancels it', () => {
+  test('getting off the phone during the countdown pauses it, so nothing sends while off', () => {
     let s = setPhone(setDemoSpeed(running(), 6), true, T0);
     const reach = Math.ceil(snitchStart / 6) + 250;
     s = advance(s, T0, reach);

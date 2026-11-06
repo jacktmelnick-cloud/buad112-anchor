@@ -46,7 +46,7 @@ describe('on the phone while away', () => {
     assert.equal(s.pickups, 0);
   });
 
-  test('walking away mid-escalation stops it climbing, and a full grace period away resets it', () => {
+  test('walking away mid-escalation stops it climbing and holds the step for when you come back', () => {
     let s = setPhone(running(), true, T0);
     s = advance(s, T0, 4 * LEVEL_MS + 1000);
     assert.equal(snapshot(s, T0 + 4 * LEVEL_MS + 1000).phone.level, 4);
@@ -54,8 +54,8 @@ describe('on the phone while away', () => {
     const t = T0 + 4 * LEVEL_MS + 1000;
     s = advance(s, t, 5000);
     assert.equal(snapshot(s, t + 5000).phone.level, 4, 'holds while inside the grace period');
-    s = advance(s, t + 5000, LEVEL_MS);
-    assert.equal(snapshot(s, t + 5000 + LEVEL_MS).phone.level, 0);
+    s = advance(s, t + 5000, 10 * LEVEL_MS);
+    assert.equal(snapshot(s, t + 5000 + 10 * LEVEL_MS).phone.level, 4, 'still held, never reset');
   });
 
   test('coming back while still on the phone counts as a fresh pickup and escalation resumes', () => {

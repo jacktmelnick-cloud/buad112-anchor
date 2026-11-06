@@ -3,12 +3,6 @@
 /** One step up the annoyance ladder per this much time on the phone. */
 export const LEVEL_MS = 15_000;
 
-/**
- * Off the phone for this long and the pickup is over: the phone timer and the punishment both reset
- * to zero. Back on sooner and both continue where they were.
- */
-export const GRACE_MS = 15_000;
-
 /** Stop stays locked while you are within this many meters of where you started. */
 export const RADIUS_M = 50;
 

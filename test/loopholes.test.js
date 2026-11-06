@@ -48,8 +48,8 @@ describe('snitch', () => {
   });
 });
 
-describe('grace while away', () => {
-  test('toggling the phone while away does not keep a high step alive', () => {
+describe('toggling while away', () => {
+  test('toggling the phone while away, then coming back on it, resumes the same step', () => {
     let s = setPhone(startSession(createIdle(), CONFIG, T0), true, T0);
     s = advance(s, T0, 5 * LEVEL_MS + 1000); // step 6
     let t = T0 + 5 * LEVEL_MS + 1000;
@@ -63,18 +63,8 @@ describe('grace while away', () => {
     const pickupsBefore = s.pickups;
     s = setSimulatedDistance(s, 5);
     const snap = snapshot(s, t);
-    assert.equal(snap.phone.level, 0, 'reset to step 1 after 40 s away');
+    assert.equal(snap.phone.level, 5, 'held at step 6 the whole time away');
     assert.equal(s.pickups, pickupsBefore + 1, 'coming back on the phone is a new pickup');
-  });
-});
-
-describe('pickup counting', () => {
-  test('off and back on in the same instant is still one pickup', () => {
-    let s = startSession(createIdle(), CONFIG, T0);
-    s = setPhone(s, true, T0 + 1000);
-    s = setPhone(s, false, T0 + 1000);
-    s = setPhone(s, true, T0 + 1000);
-    assert.equal(s.pickups, 1);
   });
 });
 

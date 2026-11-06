@@ -176,13 +176,9 @@ function phoneMeta(s) {
     const next = phone.nextLevelInMs === null ? 'Top of the rubric.' : `Next step in ${Math.ceil(phone.nextLevelInMs / 1000)} s.`;
     return `Step ${phone.level + 1} of ${phone.maxLevel + 1}: ${phone.levelName}. ${next}`;
   }
-  if (phone.graceLeftMs !== null) {
-    const left = Math.ceil(phone.graceLeftMs / 1000);
-    return `Back on within ${left} s and you pick up where you left off: step ${phone.restingLevel + 1}, ${clock(phone.stintMs)} on the timer. Stay off and it all resets to step 1.`;
-  }
   if (phone.pickups === 0) return 'No pickups yet. Keep it that way.';
   const cost = s.cost > 0 ? ` That is ${money(s.cost)} of tuition.` : '';
-  return `${plural(phone.pickups, 'pickup')}, ${clock(phone.totalMs)} on your phone.${cost} Fully reset: your next pickup starts at step 1.`;
+  return `Paused at ${clock(phone.stintMs)}, step ${phone.restingLevel + 1}: ${phone.levelName}. Pick up your phone again and it resumes right there. ${plural(phone.pickups, 'pickup')} so far.${cost}`;
 }
 
 function renderLock(s) {
@@ -215,7 +211,7 @@ function renderRubric(s) {
     if (li.dataset.state !== state) li.dataset.state = state;
   });
   const every = `${rules.levelMs / 1000} seconds`;
-  let sub = `One step every ${every} on your phone. Off for ${every} and it all resets to step 1.`;
+  let sub = `One step every ${every} on your phone. It never resets during a session; off the phone it just pauses.`;
   if (s.phone.onPhone) sub = 'Getting off clears every effect at once.';
   if (s.away) sub = 'Away from your anchor: none of this applies.';
   setText('rubric-sub', sub);

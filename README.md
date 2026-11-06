@@ -45,13 +45,13 @@ costs: tuition ÷ 450 class hours a year (15 hours a week, two 15-week semesters
 out to $2.59 a minute.
 
 Getting off the phone clears everything instantly and puts your volume back exactly as it was.
-The phone timer and the punishment run on one clock (step = timer ÷ 15 s). Stay off for 15 seconds and
-both reset to zero, step 1. Get back on sooner and both pick up where they left off, so quick toggles
-don't help.
+The phone timer and the punishment run on one clock (step = timer ÷ 15 s), and it never resets during a
+session. Off the phone, it pauses; pick the phone up again and it resumes at the same step. Only a new
+session starts from zero.
 
 **Away from your anchor** (past the point where Stop unlocks), your phone is just a phone: nothing goes
 off, nothing is charged, and the study timer pauses. Press Stop there, or walk back and keep studying.
-Coming back while still on your phone starts a fresh pickup at step 1 (if you were away 15 s or more).
+Coming back while still on your phone resumes the timer and step exactly where you left them.
 Closing the tab doesn't end the session; the server keeps it, and reopening the page picks it up.
 
 ## Demoing to the class

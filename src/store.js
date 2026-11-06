@@ -58,13 +58,9 @@ export function sanitizeSession(raw, now) {
   const onPhone = running && raw.onPhone === true;
   const counters = Object.fromEntries(COUNTERS.map((key) => [key, raw[key]]));
   // Added after the first release; older saves don't have it.
-  const optional = (key) => (Number.isFinite(raw[key]) && raw[key] >= 0 ? raw[key] : 0);
-  const awayMs = optional('awayMs');
-  const offMs = optional('offMs');
-  // Saves from the gradual-cooldown version can hold a punishment clock ahead of the visible timer.
-  const fromOldVersion = !('offMs' in raw);
-  const pressureMs = fromOldVersion ? Math.min(raw.pressureMs, raw.stintMs) : raw.pressureMs;
-  const inPickup = typeof raw.inPickup === 'boolean' ? raw.inPickup : pressureMs > 0 || raw.stintMs > 0;
+  const awayMs = Number.isFinite(raw.awayMs) && raw.awayMs >= 0 ? raw.awayMs : 0;
+  // The punishment clock never runs ahead of the visible timer (older versions could save it that way).
+  const pressureMs = Math.min(raw.pressureMs, raw.stintMs);
   const location = isObject(raw.location) ? raw.location : {};
 
   return {
@@ -72,8 +68,6 @@ export function sanitizeSession(raw, now) {
     ...counters,
     pressureMs,
     awayMs,
-    offMs,
-    inPickup,
     status: raw.status,
     config,
     startedAt: finiteOrNull(raw.startedAt),

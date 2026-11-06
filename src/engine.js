@@ -13,7 +13,6 @@ import {
   MAX_TICK_GAP_MS,
   ANCHOR_MAX_AGE_MS,
   MAX_ACCURACY_MARGIN_M,
-  GRACE_MS,
 } from './config.js';
 import { LADDER, MAX_LEVEL, levelForPressure, levelIndexOf } from './ladder.js';
 import { distanceMeters } from './geo.js';
@@ -67,8 +66,6 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     confessedUntil: 0,
     endedEarly: false,
     awayMs: 0,
-    offMs: 0,
-    inPickup: false,
   };
 }
 
@@ -94,13 +91,11 @@ export function startSession(state, config, now) {
 }
 
 /**
- * The snitch countdown runs only while the phone counts. Off the phone (inside the grace period) it
- * pauses rather than restarting, so dodging off and on can't stall it; it is cancelled only when the
- * pickup ends (grace ran out) or you walk away.
+ * The snitch countdown runs only while the phone counts. Off the phone or away it pauses rather than
+ * restarting, so dodging off and on can't stall it.
  */
-function advanceSnitch(snitch, { counts, level, now, realDt, pickupEnded }) {
+function advanceSnitch(snitch, { counts, level, now, realDt }) {
   if (snitch.sentAt !== null) return snitch;
-  if (pickupEnded) return NO_SNITCH;
   if (!counts) return snitch.startedAt === null ? snitch : { ...snitch, startedAt: snitch.startedAt + realDt };
   if (level < SNITCH_LEVEL) return snitch;
   if (snitch.startedAt === null) return { startedAt: now, sentAt: null };
@@ -133,10 +128,9 @@ export function tick(state, now) {
   const counts = state.onPhone && !away;
   const level = levelForPressure(state.pressureMs);
   const added = counts && level >= PENALTY_LEVEL ? dt * PENALTY_RATE : 0;
-  // One clock: on the phone it grows; off (or away) it holds through the grace period, then resets.
-  const offMs = counts ? 0 : (state.offMs ?? 0) + dt;
-  const graceOver = !counts && offMs >= GRACE_MS;
-  const pressureMs = counts ? Math.min(PRESSURE_CAP_MS, state.pressureMs + dt) : graceOver ? 0 : state.pressureMs;
+  // One clock for the phone timer and the punishment. It only moves while the phone counts, and it
+  // never resets during a session: off the phone or away it pauses, back on it resumes.
+  const pressureMs = counts ? Math.min(PRESSURE_CAP_MS, state.pressureMs + dt) : state.pressureMs;
   const newLevel = levelForPressure(pressureMs);
   const next = {
     ...state,
@@ -146,12 +140,10 @@ export function tick(state, now) {
     studyTargetMs: state.studyTargetMs + added,
     penaltyMs: state.penaltyMs + added,
     phoneMs: counts ? state.phoneMs + dt : state.phoneMs,
-    stintMs: counts ? state.stintMs + dt : graceOver ? 0 : state.stintMs,
+    stintMs: counts ? state.stintMs + dt : state.stintMs,
     pressureMs,
-    offMs,
-    inPickup: graceOver ? false : (state.inPickup ?? false),
     maxLevel: counts ? Math.max(state.maxLevel, newLevel) : state.maxLevel,
-    snitch: advanceSnitch(state.snitch, { counts, level: newLevel, now, realDt, pickupEnded: graceOver }),
+    snitch: advanceSnitch(state.snitch, { counts, level: newLevel, now, realDt }),
   };
   return next.studyElapsedMs >= next.studyTargetMs ? finish(next, now, false) : next;
 }
@@ -166,11 +158,9 @@ export function setPhone(state, onPhone, now) {
   const current = tick(state, now);
   if (current.status !== 'running' || current.onPhone === onPhone) return current;
   if (onPhone) {
-    // Away, the phone is free: nothing starts, and the grace window keeps running.
+    // Away, the phone is free and nothing counts. At the anchor it's a pickup, resuming where you left off.
     if (isAway(current.location)) return { ...current, onPhone: true };
-    // Back within the grace period: same pickup, same timer, same step.
-    const fresh = !current.inPickup;
-    return { ...current, onPhone: true, offMs: 0, inPickup: true, pickups: current.pickups + (fresh ? 1 : 0) };
+    return { ...current, onPhone: true, pickups: current.pickups + 1 };
   }
   // A sent bubble that has finished showing re-arms the snitch; a running countdown just pauses.
   const bubbleDone = current.snitch.sentAt !== null && now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
@@ -207,12 +197,8 @@ function settleAway(before, after) {
   if (after.status !== 'running') return after;
   const wasAway = isAway(before.location);
   const nowAway = isAway(after.location);
-  if (wasAway && !nowAway && after.onPhone) {
-    // Away long enough for the grace period to run out means this is a new pickup starting at step 1.
-    const fresh = !after.inPickup;
-    return { ...after, offMs: 0, inPickup: true, pickups: after.pickups + (fresh ? 1 : 0) };
-  }
-  if (!wasAway && nowAway && after.snitch.sentAt === null) return { ...after, snitch: NO_SNITCH };
+  // Walking back in while on the phone is a pickup; the timer and step resume where they were.
+  if (wasAway && !nowAway && after.onPhone) return { ...after, pickups: after.pickups + 1 };
   return after;
 }
 
@@ -319,7 +305,7 @@ export function snapshot(state, now) {
   const running = state.status === 'running';
   const away = running && isAway(state.location);
   const phoneCounts = state.onPhone && !away;
-  const inGrace = running && !phoneCounts && state.pressureMs > 0;
+  const paused = running && !phoneCounts && state.stintMs > 0;
   const rate = state.config?.dollarsPerMinute ?? 0;
   const atTop = level < MAX_LEVEL ? (level + 1) * LEVEL_MS - state.pressureMs : null;
   return {
@@ -340,8 +326,7 @@ export function snapshot(state, now) {
       level,
       levelId: LADDER[level].id,
       levelName: LADDER[level].name,
-      restingLevel: inGrace ? level : null,
-      graceLeftMs: inGrace ? Math.max(0, GRACE_MS - (state.offMs ?? 0)) / state.demoSpeed : null,
+      restingLevel: paused ? level : null,
       maxLevel: MAX_LEVEL,
       nextLevelInMs: phoneCounts && atTop !== null ? atTop / state.demoSpeed : null,
     },
@@ -357,7 +342,7 @@ export function snapshot(state, now) {
     },
     canStop: canStopAt(state),
     away,
-    snitch: running ? snitchView(state.snitch, now) : null,
+    snitch: running && phoneCounts ? snitchView(state.snitch, now) : null,
     confession: {
       required: running && phoneCounts && level >= CONFESS_LEVEL && now >= state.confessedUntil,
       phrase: CONFESSION_PHRASE,

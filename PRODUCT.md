@@ -23,7 +23,7 @@ Other study timers and focus apps can be switched off from the same device that 
 ## Capabilities and Constraints
 - Study timer (user sets minutes), separate phone timer, 50 m geofence via browser location, Stop locked inside the radius.
 - Escalation ladder, one step per 15 s on the phone, in this order: red pulse, ticking, blur, full-screen shake, then the rest. Effects stack; the "I'm off my phone" control is always one click away and clears every effect at once.
-- One clock for the phone timer and the punishment (step = timer / 15 s). Off the phone for 15 s and both reset to step 1; back sooner and both continue, so quick toggles do not help.
+- One clock for the phone timer and the punishment (step = timer / 15 s). It never resets during a session: off the phone or away it pauses, and it resumes where it left off. Only a new session starts from zero.
 - Away from the anchor (past the Stop unlock distance) the phone is free: no effects, no penalty, no cost, and the study timer pauses. Stop is available there, or the user walks back and continues.
 - The cost counter comes from the college's yearly tuition the user enters, divided by 450 class hours a year (27,000 minutes).
 - Session state lives on the local server, so closing the tab does not end it.

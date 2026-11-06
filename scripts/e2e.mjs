@@ -121,7 +121,7 @@ async function desktopFlow(browser) {
   await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'false');
   check('getting off clears every in-tab effect', (await page.evaluate(() => document.body.dataset.fx)) === 'off');
   check('rubric remembers where the next pickup starts', (await page.locator('#rubric-list > li[data-state="resting"]').count()) === 1);
-  check('shows the 15-second grace countdown', (await text(page, '#phone-meta')).startsWith('Back on within'), await text(page, '#phone-meta'));
+  check('shows the phone timer paused where you left off', (await text(page, '#phone-meta')).startsWith('Paused at'), await text(page, '#phone-meta'));
 
   await page.locator('#sim-range').fill('70');
   await page.waitForFunction(() => !document.querySelector('#stop-btn').disabled, null, { timeout: 5000 });
