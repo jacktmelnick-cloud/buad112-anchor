@@ -58,17 +58,12 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <span class="blank__prefix" aria-hidden="true">$</span>
             <input class="blank__input" name="tuitionPerYear" type="text" inputmode="numeric" autocomplete="off" placeholder="70,000" aria-describedby="tuition-hint" required>
           </label>
-          <div class="blank blank--wide blank--deposit">
-            <span class="blank__label" id="deposit-label">Deposit</span>
-            <div class="deposit-pick" role="radiogroup" aria-labelledby="deposit-label">
-              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="5" checked><span>$5</span></label>
-              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="10"><span>$10</span></label>
-              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="25"><span>$25</span></label>
-              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="50"><span>$50</span></label>
-              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="100"><span>$100</span></label>
-            </div>
-            <span class="blank__aside" id="deposit-hint">From 3:00 on your phone it drains, a bigger bite every minute. Play money for the demo, nothing is charged.</span>
-          </div>
+          <label class="blank blank--wide blank--deposit">
+            <span class="blank__label">Deposit <span class="blank__optional">optional</span></span>
+            <span class="blank__prefix" aria-hidden="true">$</span>
+            <input class="blank__input" name="deposit" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="deposit-hint">
+            <span class="blank__aside" id="deposit-hint">Leave it empty and there's nothing to lose. Put down any amount and it drains from 3:00 on your phone. Play money for the demo, nothing is charged.</span>
+          </label>
           <label class="blank blank--wide blank--toggle">
             <span class="blank__label">Library mode</span>
             <input class="toggle" type="checkbox" name="quiet">
@@ -90,7 +85,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
             <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 15 seconds on it, this Mac gets worse: red, ticking, blur, the whole screen shaking, then talking, a siren. In library mode it stays silent and steps every 20 seconds.</li>
             <li>Getting off clears everything instantly, but nothing resets: the phone timer pauses, and the next time you pick up your phone it resumes at the same step.</li>
-            <li>You put down a deposit, $5 to $100. Hit 3:00 on your phone and it starts draining, a bigger bite every minute until it's gone.</li>
+            <li>Put down a deposit if you want, any amount. Hit 3:00 on your phone and it starts draining, a bigger bite every minute until it's gone. No deposit, no deposit step.</li>
             <li>Walk away from your anchor and your phone is just a phone: nothing goes off and the study timer pauses. Stop it there, or walk back and keep going.</li>
           </ol>
         </section>
@@ -98,7 +93,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
         <div class="cover__actions">
           <button class="btn btn--ink btn--big" type="submit" id="start-btn">
             <svg class="icon"><use href="#i-anchor"/></svg>
-            <span id="start-btn-text">Deposit $5 and start</span>
+            <span id="start-btn-text">Drop anchor and start</span>
           </button>
           <p class="form-error" id="start-error" role="alert"></p>
         </div>
@@ -214,7 +209,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
           <div class="filled__row"><dt>Tuition burned</dt><dd class="is-pen" id="sum-cost">$0.00</dd></div>
           <div class="filled__row"><dt>Worst step</dt><dd class="is-pen" id="sum-worst">None</dd></div>
           <div class="filled__row"><dt>Away from anchor</dt><dd id="sum-away">0:00</dd></div>
-          <div class="filled__row"><dt>Deposit kept</dt><dd id="sum-deposit">$5 of $5</dd></div>
+          <div class="filled__row" id="sum-deposit-row"><dt>Deposit kept</dt><dd id="sum-deposit">$5 of $5</dd></div>
         </dl>
       </div>
 

@@ -44,18 +44,35 @@ function buildLadder(steps, levelMs, quiet) {
   });
 }
 
+const keep = (pred) => Object.freeze(ALL_STEPS.filter(pred));
+const notDeposit = (step) => step.id !== 'deposit';
+
 /** Normal mode: every step, one every 15 s. */
 export const NORMAL_LADDER = buildLadder(ALL_STEPS, LEVEL_MS, false);
 
 /** Library mode: no sound steps, one every 20 s, so the deposit still lands at 3:00. */
-export const QUIET_LADDER = buildLadder(
-  Object.freeze(ALL_STEPS.filter((step) => !step.sound)),
-  QUIET_LEVEL_MS,
-  true,
-);
+export const QUIET_LADDER = buildLadder(keep((step) => !step.sound), QUIET_LEVEL_MS, true);
 
-/** @param {boolean} quiet */
-export const ladderFor = (quiet) => (quiet ? QUIET_LADDER : NORMAL_LADDER);
+/** No money put down: the same ladders without the deposit step. */
+const NORMAL_NO_DEPOSIT = buildLadder(keep(notDeposit), LEVEL_MS, false);
+const QUIET_NO_DEPOSIT = buildLadder(keep((step) => !step.sound && notDeposit(step)), QUIET_LEVEL_MS, true);
+
+/**
+ * @param {boolean} quiet library mode
+ * @param {boolean} [hasDeposit] whether money was put down
+ */
+export function ladderFor(quiet, hasDeposit = true) {
+  if (quiet) return hasDeposit ? QUIET_LADDER : QUIET_NO_DEPOSIT;
+  return hasDeposit ? NORMAL_LADDER : NORMAL_NO_DEPOSIT;
+}
+
+/** The four ladders by name, for the page's rubric. */
+export const LADDERS = Object.freeze({
+  normal: NORMAL_LADDER,
+  quiet: QUIET_LADDER,
+  'normal-nodeposit': NORMAL_NO_DEPOSIT,
+  'quiet-nodeposit': QUIET_NO_DEPOSIT,
+});
 
 // Normal-mode shortcuts, used where the mode doesn't matter or by tests.
 export const LADDER = NORMAL_LADDER.steps;

@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createIdle } from './engine.js';
 import { parseStart, parseLocation } from './validate.js';
-import { SNITCH_COUNTDOWN_MS, DEPOSIT_DOLLARS } from './config.js';
-import { DEPOSIT_OPTIONS } from './deposit.js';
+import { SNITCH_COUNTDOWN_MS, LEGACY_DEPOSIT_DOLLARS } from './config.js';
+import { isValidDeposit } from './deposit.js';
 
 const SAVE_EVERY_MS = 1000;
 const STATUSES = new Set(['idle', 'running', 'done']);
@@ -79,7 +79,8 @@ export function sanitizeSession(raw, now) {
     snitch: loadSnitch(raw.snitch),
     pickupCounted: raw.pickupCounted === true,
     confessionDone: raw.confessionDone === true,
-    deposit: DEPOSIT_OPTIONS.includes(raw.deposit) ? raw.deposit : DEPOSIT_DOLLARS,
+    // Saves from before typed deposits had $5 down; anything else must be a valid amount (0 = none).
+    deposit: raw.deposit === undefined ? LEGACY_DEPOSIT_DOLLARS : isValidDeposit(raw.deposit) ? raw.deposit : 0,
   };
 }
 

@@ -21,8 +21,8 @@ export const SNITCH_SENT_VISIBLE_MS = 8_000;
 /** The sentence you have to type at the top step. */
 export const CONFESSION_PHRASE = 'I am choosing my phone over my grade';
 
-/** The default deposit placed at the start of a session (play money in this MVP; nothing is charged). */
-export const DEPOSIT_DOLLARS = 5;
+/** What a saved session from before deposits were typed in had put down (play money; nothing is charged). */
+export const LEGACY_DEPOSIT_DOLLARS = 5;
 
 /** From the deposit step on, a bite is taken every this much time on the phone (see src/deposit.js). */
 export const DEPOSIT_LOSS_EVERY_MS = 60_000;

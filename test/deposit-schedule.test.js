@@ -5,24 +5,13 @@
 // deposit hits exactly $0 on its last minute (rounded to cents; the last bite absorbs rounding).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { depositSchedule, DEPOSIT_OPTIONS, DEPOSIT_LOSS_RATIO } from '../src/deposit.js';
-import { parseStart } from '../src/validate.js';
+import { depositSchedule, DEPOSIT_LOSS_RATIO } from '../src/deposit.js';
 import { createIdle, startSession, tick, setPhone, snapshot } from '../src/engine.js';
 
 const T0 = 1_700_000_000_000;
 const sum = (xs) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
 
-describe('deposit options', () => {
-  test('are $5, $10, $25, $50, $100', () => {
-    assert.deepEqual(DEPOSIT_OPTIONS, [5, 10, 25, 50, 100]);
-  });
-
-  test('can be picked before starting, defaulting to $5', () => {
-    assert.equal(parseStart({ studyMinutes: 25 }).value.deposit, 5);
-    assert.equal(parseStart({ studyMinutes: 25, deposit: 50 }).value.deposit, 50);
-    assert.equal(parseStart({ studyMinutes: 25, deposit: 7 }).ok, false);
-  });
-});
+const DEPOSIT_OPTIONS = [5, 10, 25, 50, 100];
 
 describe('the exponential schedule', () => {
   test('$5 goes $1.00, $1.56, $2.44', () => {

@@ -16,7 +16,7 @@ export const VOLUME_FLOOR = Object.freeze({ tick: 35, siren: 70 });
 /** While a floor is on, push it again this often in case it was turned down or muted. */
 export const VOLUME_REASSERT_MS = 5_000;
 
-const ladderOfSnap = (snap) => ladderFor(snap.quiet === true);
+const ladderOfSnap = (snap) => ladderFor(snap.quiet === true, Boolean(snap.deposit));
 
 /**
  * Blur comes in waves so the screen stays usable between them. The cycle length is fixed, so the rhythm
@@ -170,8 +170,8 @@ export function overlayFrame(snap, now = Date.now()) {
     shake: waveOn && fx.shake,
     shakeAmp: waveOn ? fx.shakeAmp : 0,
     shakeReady: fx.shakeAmp > 0,
-    depositLeft: snap.deposit.left,
-    depositTotal: snap.deposit.total,
+    depositLeft: snap.deposit?.left ?? null,
+    depositTotal: snap.deposit?.total ?? null,
     snitchPhase: snap.snitch?.phase ?? null,
     snitchSeconds: snap.snitch?.phase === 'countdown' ? snap.snitch.secondsLeft : null,
     snitchMessage: snap.snitch ? snitchMessage(snap) : null,

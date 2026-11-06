@@ -14,7 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const T0 = 1_700_000_000_000;
-const QUIET = { studyMinutes: 120, dollarsPerMinute: 2.5, courseName: 'BUAD 112', quiet: true };
+const QUIET = { studyMinutes: 120, dollarsPerMinute: 2.5, courseName: 'BUAD 112', quiet: true, deposit: 5 };
 
 function advance(state, from, duration, step = 500) {
   let s = state;

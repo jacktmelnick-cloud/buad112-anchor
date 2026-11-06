@@ -8,9 +8,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseStart, parseLocation, parsePhone, parseDemo, parseConfess } from './validate.js';
 import { createLogger } from './log.js';
-import { LADDER, NORMAL_LADDER, QUIET_LADDER } from './ladder.js';
-import { DEPOSIT_OPTIONS, depositSchedule } from './deposit.js';
-import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS, DEPOSIT_DOLLARS } from './config.js';
+import { LADDER, LADDERS } from './ladder.js';
+import { DEPOSIT_MAX } from './deposit.js';
+import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS } from './config.js';
 
 const RULES = Object.freeze({
   ladder: LADDER,
@@ -19,13 +19,10 @@ const RULES = Object.freeze({
   confession: CONFESSION_PHRASE,
   classMinutesPerYear: CLASS_MINUTES_PER_YEAR,
   maxTuitionPerYear: LIMITS.maxTuitionPerYear,
-  depositDollars: DEPOSIT_DOLLARS,
-  depositOptions: DEPOSIT_OPTIONS,
-  depositSchedules: Object.fromEntries(DEPOSIT_OPTIONS.map((d) => [d, depositSchedule(d)])),
-  ladders: {
-    normal: { steps: NORMAL_LADDER.steps, levelMs: NORMAL_LADDER.levelMs },
-    quiet: { steps: QUIET_LADDER.steps, levelMs: QUIET_LADDER.levelMs },
-  },
+  depositMax: DEPOSIT_MAX,
+  ladders: Object.fromEntries(
+    Object.entries(LADDERS).map(([name, ladder]) => [name, { steps: ladder.steps, levelMs: ladder.levelMs }]),
+  ),
 });
 
 const MAX_BODY_BYTES = 8 * 1024;

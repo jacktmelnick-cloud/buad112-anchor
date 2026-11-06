@@ -2,8 +2,8 @@
  * Input validation for everything that crosses the HTTP boundary.
  * Each parser returns `{ ok: true, value }` or `{ ok: false, error }` with a message fit to show a person.
  */
-import { DEFAULTS, LIMITS, DEMO_SPEED_MIN, DEMO_SPEED_MAX, CLASS_MINUTES_PER_YEAR, DEPOSIT_DOLLARS } from './config.js';
-import { DEPOSIT_OPTIONS } from './deposit.js';
+import { DEFAULTS, LIMITS, DEMO_SPEED_MIN, DEMO_SPEED_MAX, CLASS_MINUTES_PER_YEAR } from './config.js';
+import { DEPOSIT_MAX, isValidDeposit } from './deposit.js';
 
 const ok = (value) => ({ ok: true, value });
 const fail = (error) => ({ ok: false, error });
@@ -40,8 +40,11 @@ export function parseStart(body) {
   const name = cleaned || DEFAULTS.courseName;
   const quiet = body.quiet ?? false;
   if (typeof quiet !== 'boolean') return fail('Library mode must be on or off.');
-  const deposit = body.deposit ?? DEPOSIT_DOLLARS;
-  if (!DEPOSIT_OPTIONS.includes(deposit)) return fail(`Deposit must be one of $${DEPOSIT_OPTIONS.join(', $')}.`);
+  // Leaving the deposit empty means no money down and no deposit step.
+  const deposit = body.deposit ?? 0;
+  if (!isValidDeposit(deposit)) {
+    return fail(`Deposit must be an amount from $0 to $${DEPOSIT_MAX.toLocaleString('en-US')}, or left empty.`);
+  }
   return ok({
     studyMinutes,
     dollarsPerMinute,

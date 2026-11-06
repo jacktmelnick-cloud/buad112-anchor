@@ -12,10 +12,10 @@ import {
 import { overlayFrame } from '../src/effects.js';
 import { createStore } from '../src/store.js';
 import { LADDER, MAX_LEVEL, levelIndexOf } from '../src/ladder.js';
-import { LEVEL_MS, DEPOSIT_DOLLARS, CONFESSION_PHRASE } from '../src/config.js';
+import { LEVEL_MS, CONFESSION_PHRASE } from '../src/config.js';
 
 const T0 = 1_700_000_000_000;
-const CONFIG = { studyMinutes: 120, dollarsPerMinute: 2.5, courseName: 'BUAD 112' };
+const CONFIG = { studyMinutes: 120, dollarsPerMinute: 2.5, courseName: 'BUAD 112', deposit: 5 };
 
 function advance(state, from, duration, step = 1000) {
   let s = state;
@@ -27,8 +27,7 @@ const running = () => startSession(createIdle(), CONFIG, T0);
 const onPhoneFor = (ms) => advance(setPhone(running(), true, T0), T0, ms);
 
 describe('the deposit', () => {
-  test('is $5, placed when the session starts', () => {
-    assert.equal(DEPOSIT_DOLLARS, 5);
+  test('is placed when the session starts', () => {
     assert.deepEqual(snapshot(running(), T0).deposit, { total: 5, left: 5, lost: 0, nextBite: 1 });
   });
 

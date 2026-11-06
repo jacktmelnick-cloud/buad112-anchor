@@ -171,7 +171,8 @@ describe('rules', () => {
   test('publishes the ladder and radius for the page', async () => {
     const body = await (await fetch(`${base}/api/rules`)).json();
     assert.equal(body.data.ladder.length, 13);
-    assert.equal(body.data.depositDollars, 5);
+    assert.equal(body.data.ladders['normal-nodeposit'].steps.length, 12);
+    assert.equal(body.data.ladders['quiet-nodeposit'].steps.length, 9);
     assert.equal(body.data.radiusM, 50);
     assert.equal(body.data.levelMs, 15_000);
     assert.equal(body.data.classMinutesPerYear, 27_000);

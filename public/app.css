@@ -967,12 +967,6 @@ figure {
 
 /* ---------- Deposit ---------- */
 
-.blank__filled {
-  font: 700 1.6rem / 1.25 var(--font-hand);
-  border-bottom: 2px solid var(--ink);
-  padding: 2px 6px;
-}
-
 .blank--toggle {
   align-items: center;
   cursor: pointer;
@@ -987,52 +981,26 @@ figure {
   cursor: pointer;
 }
 
-.deposit-pick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.deposit-pick__opt {
-  position: relative;
-  cursor: pointer;
-}
-
-.deposit-pick__opt input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.deposit-pick__opt span {
-  display: inline-block;
-  min-width: 3.4em;
-  padding: 4px 12px 2px;
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-  font: 700 1.35rem / 1.2 var(--font-hand);
-  text-align: center;
-  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-}
-
-.deposit-pick__opt:hover span {
-  background: rgb(252 251 247 / 0.4);
-}
-
-.deposit-pick__opt input:checked + span {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.deposit-pick__opt input:focus-visible + span {
-  outline: 3px solid var(--ink);
-  outline-offset: 3px;
-}
-
 .blank--deposit {
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   row-gap: 8px;
+}
+
+.blank--deposit .blank__input {
+  flex: 0 1 9em;
+  min-width: 0;
+}
+
+.blank--deposit .blank__aside {
+  flex-basis: 100%;
+}
+
+.blank__optional {
+  color: var(--pencil);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 
 .blank__aside {

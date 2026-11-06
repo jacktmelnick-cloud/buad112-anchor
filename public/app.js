@@ -1,5 +1,6 @@
 // Anchor page. The server owns the session; this page renders snapshots from /events,
 // reports location, and sends button presses. No user text is ever written as HTML.
+import { DEPOSIT_MAX, depositSchedule, isValidDeposit } from './lib/deposit.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -224,8 +225,13 @@ function renderRubric(s) {
   setText('rubric-sub', sub);
 }
 
-/** Balance in the page head, with a "-$1" that floats off whenever a dollar goes. */
+/** Balance in the page head, with a "-$1" that floats off whenever a dollar goes. Hidden with no deposit. */
 function renderDeposit(s) {
+  show('deposit-chip', s.deposit !== null);
+  if (s.deposit === null) {
+    lastDepositLeft = null;
+    return;
+  }
   const { left, lost } = s.deposit;
   setText('deposit-left', money(left).replace('.00', ''));
   $('deposit-chip').dataset.lost = String(lost > 0);
@@ -241,7 +247,7 @@ function renderDeposit(s) {
 
 function renderSession(s) {
   const { phone, study } = s;
-  const mode = s.quiet ? 'quiet' : 'normal';
+  const mode = `${s.quiet ? 'quiet' : 'normal'}${s.deposit ? '' : '-nodeposit'}`;
   if (mode !== rubricMode) buildRubric(mode);
   show('quiet-stamp', s.quiet === true);
   renderDeposit(s);
@@ -290,8 +296,12 @@ function renderSummary(summary) {
   setText('sum-cost', money(summary.cost));
   setText('sum-worst', summary.maxLevelName ?? 'None');
   setText('sum-away', clock(summary.awayMs));
-  setText('sum-deposit', `${money(summary.depositLeft).replace('.00', '')} of ${money(summary.depositLeft + summary.depositLost).replace('.00', '')}`);
-  $('sum-deposit').classList.toggle('is-pen', summary.depositLost > 0);
+  show('sum-deposit-row', summary.depositLeft !== null);
+  if (summary.depositLeft !== null) {
+    const total = summary.depositLeft + summary.depositLost;
+    setText('sum-deposit', `${money(summary.depositLeft).replace('.00', '')} of ${money(total).replace('.00', '')}`);
+    $('sum-deposit').classList.toggle('is-pen', summary.depositLost > 0);
+  }
   setText('summary-sub', summary.endedEarly ? 'Ended early: you walked away from your anchor.' : 'Timer finished. Handed back.');
   setText('remark', REMARKS[summary.grade[0]] ?? '');
 }
@@ -382,15 +392,38 @@ function parseTuition(raw) {
   return amount >= 1 && amount <= rules.maxTuitionPerYear ? Math.round(amount) : null;
 }
 
-/** Spell out the chosen deposit's schedule and put the amount on the start button. */
+const DEPOSIT_PATTERN = /^\d+(\.\d{1,2})?$/;
+const DEPOSIT_FIRST_BITE_MINUTE = 3;
+const DEPOSIT_HINT_MAX_BITES = 6;
+const PLAY_MONEY = 'Play money for the demo, nothing is charged.';
+const dollars = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' }).replace(/\.00$/, '');
+
+/** Empty means no deposit (0). Returns null for anything that isn't an amount. */
+function parseDeposit(raw) {
+  const text = String(raw ?? '').trim().replace(/[$,\s]/g, '');
+  if (text === '') return 0;
+  if (!DEPOSIT_PATTERN.test(text)) return null;
+  const amount = Number(text);
+  return isValidDeposit(amount) ? amount : null;
+}
+
+/** Spell out the typed deposit's schedule (shared math, so it matches what is charged) and label the button. */
 function renderDepositHint() {
-  if (!rules) return;
-  const amount = Number(document.querySelector('input[name=deposit]:checked')?.value ?? rules.depositDollars);
-  const bites = rules.depositSchedules[amount] ?? [];
-  const whole = (n) => money(n).replace('.00', '');
-  const steps = bites.map((bite, i) => `${money(bite)} at ${3 + i}:00`).join(', ');
-  setText('deposit-hint', `From 3:00 on your phone: ${steps}, then it's gone. Play money for the demo, nothing is charged.`);
-  setText('start-btn-text', `Deposit ${whole(amount)} and start`);
+  const amount = parseDeposit(document.querySelector('input[name=deposit]').value);
+  if (amount === null) {
+    setText('deposit-hint', `Type an amount like 5 or 12.50, up to ${dollars(DEPOSIT_MAX)}. Or leave it empty.`);
+    setText('start-btn-text', 'Drop anchor and start');
+    return;
+  }
+  if (amount === 0) {
+    setText('deposit-hint', `No deposit, nothing to lose, and no deposit step. Put down any amount to raise the stakes. ${PLAY_MONEY}`);
+    setText('start-btn-text', 'Drop anchor and start');
+    return;
+  }
+  const bites = depositSchedule(amount).map((bite, i) => `${dollars(bite)} at ${DEPOSIT_FIRST_BITE_MINUTE + i}:00`);
+  const shown = bites.length > DEPOSIT_HINT_MAX_BITES ? [...bites.slice(0, 3), '...', bites[bites.length - 1]] : bites;
+  setText('deposit-hint', `From 3:00 on your phone: ${shown.join(', ')}, then it's gone. ${PLAY_MONEY}`);
+  setText('start-btn-text', `Deposit ${dollars(amount)} and start`);
 }
 
 function renderTuitionHint() {
@@ -416,7 +449,10 @@ function readStartForm(form) {
     return { error: "Enter your college's yearly tuition, like 70,000." };
   }
   const quiet = data.get('quiet') === 'on';
-  const deposit = Number(data.get('deposit') ?? 5);
+  const deposit = parseDeposit(data.get('deposit'));
+  if (deposit === null) {
+    return { error: `Deposit must be an amount like 5 or 12.50, up to ${dollars(DEPOSIT_MAX)}, or left empty.` };
+  }
   return { value: { studyMinutes, tuitionPerYear, quiet, deposit, courseName: String(data.get('courseName') ?? '').trim() } };
 }
 
@@ -471,7 +507,7 @@ function wireEvents() {
     draggingSpeed = false;
   });
 
-  document.querySelectorAll('input[name=deposit]').forEach((radio) => radio.addEventListener('change', renderDepositHint));
+  document.querySelector('input[name=deposit]').addEventListener('input', renderDepositHint);
 
   const range = $('sim-range');
   range.addEventListener('input', () => {

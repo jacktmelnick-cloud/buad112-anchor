@@ -8,7 +8,6 @@ import {
   SNITCH_COUNTDOWN_MS,
   SNITCH_SENT_VISIBLE_MS,
   CONFESSION_PHRASE,
-  DEPOSIT_DOLLARS,
   DEPOSIT_LOSS_EVERY_MS,
   MAX_TICK_GAP_MS,
   ANCHOR_MAX_AGE_MS,
@@ -20,7 +19,8 @@ import { distanceMeters } from './geo.js';
 import { normalizePhrase } from './phrase.js';
 
 /** The session's ladder: library mode (quiet) has no sound steps and 20 s steps. */
-const ladderOf = (state) => ladderFor(state.config?.quiet === true);
+const depositOf = (state) => state.deposit ?? 0;
+const ladderOf = (state) => ladderFor(state.config?.quiet === true, depositOf(state) > 0);
 
 /** The punishment clock stops at the top step; the timer you see keeps counting. */
 const pressureCap = (ladder) => (ladder.maxLevel + 1) * ladder.levelMs - 1;
@@ -65,7 +65,7 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     location: { anchor: null, current: currentFix, simulatedM: null },
     snitch: NO_SNITCH,
     confessionDone: false,
-    deposit: DEPOSIT_DOLLARS,
+    deposit: 0,
     endedEarly: false,
     awayMs: 0,
     pickupCounted: false,
@@ -89,7 +89,7 @@ export function startSession(state, config, now) {
     startedAt: now,
     lastTickAt: now,
     studyTargetMs: config.studyMinutes * 60_000,
-    deposit: config.deposit ?? DEPOSIT_DOLLARS,
+    deposit: config.deposit ?? 0,
     location: { anchor, current, simulatedM: null },
   };
 }
@@ -263,16 +263,19 @@ function confessionUp(state) {
 /** Bites taken so far: the first at the deposit step, then one a minute (src/deposit.js has the amounts). */
 function depositBites(state) {
   const ladder = ladderOf(state);
+  if (!ladder.has('deposit')) return 0;
   const startMs = ladder.stepAt('deposit') * ladder.levelMs;
   if (state.stintMs < startMs) return 0;
   return 1 + Math.floor((state.stintMs - startMs) / DEPOSIT_LOSS_EVERY_MS);
 }
 
 /** Dollars taken from the deposit so far, on its exponential schedule. */
-const depositLost = (state) => depositLostAfter(state.deposit ?? DEPOSIT_DOLLARS, depositBites(state));
+const depositLost = (state) => depositLostAfter(depositOf(state), depositBites(state));
 
+/** The balance, or null when no money was put down. */
 function depositView(state) {
-  const total = state.deposit ?? DEPOSIT_DOLLARS;
+  const total = depositOf(state);
+  if (total <= 0) return null;
   const lost = depositLost(state);
   const schedule = depositSchedule(total);
   const bites = depositBites(state);
@@ -316,11 +319,12 @@ function summarize(state) {
     penaltyMs: state.penaltyMs,
     cost: cents((state.phoneMs / 60_000) * state.config.dollarsPerMinute),
     maxLevel: state.maxLevel,
-    maxLevelName: state.pickups > 0 ? ladderOf(state).steps[state.maxLevel].name : null,
+    // Clamped to the session's own ladder, so a save whose worst step is past its end can't crash this.
+    maxLevelName: state.pickups > 0 ? ladderOf(state).steps[Math.min(state.maxLevel, ladderOf(state).maxLevel)].name : null,
     endedEarly: state.endedEarly,
     awayMs: state.awayMs ?? 0,
-    depositLeft: depositView(state).left,
-    depositLost: depositLost(state),
+    depositLeft: depositView(state)?.left ?? null,
+    depositLost: depositOf(state) > 0 ? depositLost(state) : null,
     quiet: ladderOf(state).quiet,
     courseName: state.config.courseName,
   };

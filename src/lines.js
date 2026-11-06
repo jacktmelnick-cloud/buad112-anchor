@@ -2,7 +2,7 @@
 import { spokenDuration, clock, money } from './format.js';
 import { ladderFor } from './ladder.js';
 
-const reached = (snap, id) => ladderFor(snap.quiet === true).reached(snap.phone.level, id);
+const reached = (snap, id) => ladderFor(snap.quiet === true, Boolean(snap.deposit)).reached(snap.phone.level, id);
 
 /**
  * @param {number} index rotation counter

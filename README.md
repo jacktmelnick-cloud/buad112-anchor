@@ -35,12 +35,13 @@ The first start compiles the screen overlay (a few seconds).
 | 2:15 | Snitch | "Texting your study group in 10…" then a fake sent message. Nothing is sent |
 | 2:30 | Siren | Siren loop, volume forced to at least 70 |
 | 2:45 | Confession | A popup you make leave by typing "I am choosing my phone over my grade". Pops up once per session |
-| 3:00 | Deposit | Your deposit drains, a bigger bite every minute until it's gone. The floating bar shows the balance and a red -$X each time |
+| 3:00 | Deposit | Only if you put money down. It drains, a bigger bite every minute until it's gone. The floating bar shows the balance and a red -$X each time |
 
-**Deposit:** pick $5, $10, $25, $50, or $100 before starting (play money in this MVP; nothing is
-charged, no card). From 3:00 on the phone it drains exponentially: each minute takes about 1.56x the
-minute before, and bigger deposits burn for more minutes. It follows the phone timer, which never resets
-during a session, so lost money stays lost.
+**Deposit:** optional. Type any amount up to $10,000 before starting, or leave it empty (play money in
+this MVP; nothing is charged, no card). Empty means no deposit step at all. From 3:00 on the phone it
+drains exponentially: each minute takes about 1.56x the minute before, and bigger deposits burn for more
+minutes: n = 3 + round(log2(amount / 5)), clamped to 1-15. It follows the phone timer, which never resets
+during a session, so lost money stays lost. Examples:
 
 | Deposit | 3:00 | 4:00 | 5:00 | 6:00 | 7:00 | 8:00 | 9:00 |
 |---|---|---|---|---|---|---|---|

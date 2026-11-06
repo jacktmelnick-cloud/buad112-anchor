@@ -540,7 +540,10 @@ final class HUD {
     private let detail = label("", font: Fonts.ui(12), color: Palette.pencil)
     private let balance = label("$5", font: Fonts.pen(27), color: Palette.ink)
     private let balanceCaption = label("deposit left", font: Fonts.ui(11, .semibold), color: Palette.pencil)
+    private let divider = NSView(frame: NSRect(x: 404, y: 16, width: 1, height: 52))
     private var lastDeposit: Double?
+    /// Step text width with and without the balance column (no deposit put down).
+    private static let textWidth = (withBalance: CGFloat(228), alone: CGFloat(344))
 
     init(target: AnyObject, offAction: Selector) {
         panel = floatingPanel(NSPanel.self, size: Self.size)
@@ -558,7 +561,6 @@ final class HUD {
         step.frame = NSRect(x: 166, y: 44, width: 228, height: 22)
         detail.frame = NSRect(x: 166, y: 22, width: 228, height: 18)
 
-        let divider = NSView(frame: NSRect(x: 404, y: 16, width: 1, height: 52))
         divider.wantsLayer = true
         divider.layer?.backgroundColor = Palette.ink.withAlphaComponent(0.15).cgColor
 
@@ -579,7 +581,15 @@ final class HUD {
 
     /// Balance in ink while intact, red pen once money has gone; a "-$1" floats off on every loss.
     private func updateDeposit(_ frame: Frame) {
-        guard let left = frame.depositLeft else { return }
+        let hasDeposit = frame.depositLeft != nil
+        [divider, balance, balanceCaption].forEach { $0.isHidden = !hasDeposit }
+        let width = hasDeposit ? Self.textWidth.withBalance : Self.textWidth.alone
+        step.frame.size.width = width
+        detail.frame.size.width = width
+        guard let left = frame.depositLeft else {
+            lastDeposit = nil
+            return
+        }
         balance.stringValue = Self.dollars(left)
         balance.textColor = left < (frame.depositTotal ?? left) ? Palette.pen : Palette.ink
         if let last = lastDeposit, left < last { floatMinus(last - left) }

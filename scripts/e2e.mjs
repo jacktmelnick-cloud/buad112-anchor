@@ -55,12 +55,15 @@ async function desktopFlow(browser) {
   await page.locator('#cover').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.querySelector('#anchor-status').dataset.state === 'ready');
   check('cover shows a ready anchor', (await text(page, '#anchor-status-text')).startsWith('Ready right here'));
-  check('start button places the $5 deposit', (await text(page, '#start-btn')).includes('Deposit $5'));
-  check('the $5 schedule is spelled out', (await text(page, '#deposit-hint')).includes('$1.00 at 3:00, $1.56 at 4:00, $2.44 at 5:00'), await text(page, '#deposit-hint'));
-  await page.click('.deposit-pick__opt:has(input[value="100"])');
-  check('picking $100 updates the button', (await text(page, '#start-btn')).includes('Deposit $100'));
-  check('picking $100 shows its 7-minute schedule', (await text(page, '#deposit-hint')).includes('$37.63 at 9:00'), await text(page, '#deposit-hint'));
-  await page.click('.deposit-pick__opt:has(input[value="5"])');
+  check('deposit starts empty: nothing to lose', (await text(page, '#deposit-hint')).startsWith('No deposit'), await text(page, '#deposit-hint'));
+  check('with no deposit the button just starts', (await text(page, '#start-btn')).includes('Drop anchor'));
+  await page.fill('input[name=deposit]', 'lots');
+  check('a non-amount deposit is called out', (await text(page, '#deposit-hint')).startsWith('Type an amount'));
+  await page.fill('input[name=deposit]', '12.50');
+  check('a typed $12.50 updates the button', (await text(page, '#start-btn')).includes('Deposit $12.50'), await text(page, '#start-btn'));
+  check('a typed $12.50 shows its schedule', (await text(page, '#deposit-hint')).includes('$1.42 at 3:00'), await text(page, '#deposit-hint'));
+  await page.fill('input[name=deposit]', '5');
+  check('the $5 schedule is spelled out', (await text(page, '#deposit-hint')).includes('$1 at 3:00, $1.56 at 4:00, $2.44 at 5:00'), await text(page, '#deposit-hint'));
   await page.screenshot({ path: path.join(shots, '1-cover-desktop.png') });
 
   await page.fill('input[name=studyMinutes]', '0');
@@ -191,8 +194,10 @@ async function mobileFlow(browser) {
   await page.check('input[name=quiet]');
   await page.click('#start-btn');
   await page.locator('#session').waitFor({ state: 'visible' });
-  await page.waitForFunction(() => document.querySelectorAll('#rubric-list > li').length === 10);
-  check('library mode shows its 10-step rubric', true);
+  await page.waitForFunction(() => document.querySelectorAll('#rubric-list > li').length === 9);
+  check('library mode with no deposit shows a 9-step rubric', true);
+  check('no deposit, no balance on the page', !(await page.locator('#deposit-chip').isVisible()));
+  check('no deposit, no deposit step', !(await text(page, '#rubric-list')).toLowerCase().includes('deposit'));
   check('library mode stamp shows', await page.locator('#quiet-stamp').isVisible());
   check('library mode steps every 20 seconds', (await page.locator('#rubric-list > li .rubric__at').nth(1).textContent()) === '0:20');
   await page.click('#phone-btn');
