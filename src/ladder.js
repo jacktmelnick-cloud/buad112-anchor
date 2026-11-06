@@ -1,73 +1,98 @@
-import { LEVEL_MS } from './config.js';
+import { LEVEL_MS, QUIET_LEVEL_MS } from './config.js';
 
 /**
- * The annoyance ladder. One step per LEVEL_MS on the phone; every step keeps the ones before it.
- * @type {ReadonlyArray<{ id: string, name: string, note: string }>}
+ * Every step, in order. Each step keeps the ones before it. `sound: true` steps are cut in library mode.
+ * @type {ReadonlyArray<{ id: string, name: string, note: string, sound: boolean }>}
  */
-export const LADDER = Object.freeze(
+const ALL_STEPS = Object.freeze(
   [
-    { id: 'clock', name: 'Clock', note: 'A phone timer follows you into every app' },
-    { id: 'pulse', name: 'Red pulse', note: 'The whole screen pulses red' },
-    { id: 'tick', name: 'Ticking', note: 'A clock ticks, faster every step' },
-    { id: 'blur', name: 'Blur', note: 'The screen blurs in waves, a few clear seconds between' },
-    { id: 'shake', name: 'Shake', note: 'Every blur wave shakes the whole screen' },
-    { id: 'cost', name: 'Receipt', note: 'Tuition burned, counted live' },
-    { id: 'voice', name: 'Voice', note: 'Your Mac starts talking to you' },
-    { id: 'notify', name: 'Notifications', note: 'A banner every 10 seconds' },
-    { id: 'penalty', name: 'Penalty', note: 'Each phone second adds 2 to studying' },
-    { id: 'snitch', name: 'Snitch', note: 'Texting your study group' },
-    { id: 'siren', name: 'Siren', note: 'Siren, volume forced up' },
-    { id: 'confess', name: 'Confession', note: 'Type it to make the popup leave (once)' },
-    { id: 'deposit', name: 'Deposit', note: '-$1 now and every minute until your $5 is gone' },
+    { id: 'clock', name: 'Clock', note: 'A phone timer follows you into every app', sound: false },
+    { id: 'pulse', name: 'Red pulse', note: 'The whole screen pulses red', sound: false },
+    { id: 'tick', name: 'Ticking', note: 'A clock ticks, faster every step', sound: true },
+    { id: 'blur', name: 'Blur', note: 'The screen blurs in waves, a few clear seconds between', sound: false },
+    { id: 'shake', name: 'Shake', note: 'Every blur wave shakes the whole screen', sound: false },
+    { id: 'cost', name: 'Receipt', note: 'Tuition burned, counted live', sound: false },
+    { id: 'voice', name: 'Voice', note: 'Your Mac starts talking to you', sound: true },
+    { id: 'notify', name: 'Notifications', note: 'A banner every 10 seconds', sound: false },
+    { id: 'penalty', name: 'Penalty', note: 'Each phone second adds 2 to studying', sound: false },
+    { id: 'snitch', name: 'Snitch', note: 'Texting your study group', sound: false },
+    { id: 'siren', name: 'Siren', note: 'Siren, volume forced up', sound: true },
+    { id: 'confess', name: 'Confession', note: 'Type it to make the popup leave (once)', sound: false },
+    { id: 'deposit', name: 'Deposit', note: '-$1 now and every minute until your $5 is gone', sound: false },
   ].map((step) => Object.freeze(step)),
 );
 
-export const MAX_LEVEL = LADDER.length - 1;
+/**
+ * A ladder: its steps, how long each lasts, and helpers that answer "is this step on yet?".
+ * Steps a ladder doesn't have (the sound steps in library mode) are never reached.
+ */
+function buildLadder(steps, levelMs, quiet) {
+  const ids = steps.map((step) => step.id);
+  const maxLevel = steps.length - 1;
+  const stepAt = (id) => ids.indexOf(id);
+  return Object.freeze({
+    quiet,
+    steps,
+    levelMs,
+    maxLevel,
+    stepAt,
+    has: (id) => stepAt(id) !== -1,
+    /** @param {number} pressureMs */
+    levelFor: (pressureMs) => Math.min(maxLevel, Math.floor(Math.max(0, pressureMs) / levelMs)),
+    /** @param {number} level @param {string} id */
+    reached: (level, id) => stepAt(id) !== -1 && level >= stepAt(id),
+  });
+}
+
+/** Normal mode: every step, one every 15 s. */
+export const NORMAL_LADDER = buildLadder(ALL_STEPS, LEVEL_MS, false);
+
+/** Library mode: no sound steps, one every 20 s, so the deposit still lands at 3:00. */
+export const QUIET_LADDER = buildLadder(
+  Object.freeze(ALL_STEPS.filter((step) => !step.sound)),
+  QUIET_LEVEL_MS,
+  true,
+);
+
+/** @param {boolean} quiet */
+export const ladderFor = (quiet) => (quiet ? QUIET_LADDER : NORMAL_LADDER);
+
+// Normal-mode shortcuts, used where the mode doesn't matter or by tests.
+export const LADDER = NORMAL_LADDER.steps;
+export const MAX_LEVEL = NORMAL_LADDER.maxLevel;
 
 /**
  * @param {string} id
- * @returns {number}
+ * @returns {number} the step's index in the normal ladder
  */
 export function levelIndexOf(id) {
-  const index = LADDER.findIndex((step) => step.id === id);
+  const index = NORMAL_LADDER.stepAt(id);
   if (index === -1) throw new Error(`Unknown ladder step: ${id}`);
   return index;
 }
 
-/**
- * @param {number} pressureMs accumulated phone pressure
- * @returns {number} ladder index, clamped to the ladder
- */
-export function levelForPressure(pressureMs) {
-  const raw = Math.floor(Math.max(0, pressureMs) / LEVEL_MS);
-  return Math.min(MAX_LEVEL, raw);
-}
-
-const STEP = Object.freeze({
-  pulse: levelIndexOf('pulse'),
-  tick: levelIndexOf('tick'),
-  blur: levelIndexOf('blur'),
-  shake: levelIndexOf('shake'),
-});
+/** @param {number} pressureMs */
+export const levelForPressure = (pressureMs) => NORMAL_LADDER.levelFor(pressureMs);
 
 /** Screen vibration in points: starts violent, gets worse, stays inside the overlay's 60-point bleed. */
 const SHAKE_START_PT = 18;
 const SHAKE_STEP_PT = 3;
 const SHAKE_MAX_PT = 36;
 
-/** Steps past the one that switched an effect on, or -1 when it is not on yet. */
-const stepsPast = (level, start) => (level >= start ? level - start : -1);
+/** Steps past the one that switched an effect on, or -1 when it is not on (or not in this ladder). */
+const stepsPast = (level, start) => (start >= 0 && level >= start ? level - start : -1);
 
 /**
  * How hard each continuous effect hits at a given level. Level -1 means off the phone.
  * The pulse period never drops below 1.2 s, far under the 3 flashes/second seizure threshold.
  * @param {number} level
+ * @param {ReturnType<typeof buildLadder>} [ladder]
  */
-export function intensity(level) {
-  const pulse = stepsPast(level, STEP.pulse);
-  const tick = stepsPast(level, STEP.tick);
-  const blur = stepsPast(level, STEP.blur);
-  const shake = stepsPast(level, STEP.shake);
+export function intensity(level, ladder = NORMAL_LADDER) {
+  const pulse = stepsPast(level, ladder.stepAt('pulse'));
+  const tick = stepsPast(level, ladder.stepAt('tick'));
+  const blur = stepsPast(level, ladder.stepAt('blur'));
+  const shake = stepsPast(level, ladder.stepAt('shake'));
   const shakeAmp = shake < 0 ? 0 : Math.min(SHAKE_MAX_PT, SHAKE_START_PT + SHAKE_STEP_PT * shake);
   return Object.freeze({
     pulseAlpha: pulse < 0 ? 0 : Math.min(0.42, 0.16 + 0.026 * pulse),

@@ -3,6 +3,9 @@
 /** One step up the annoyance ladder per this much time on the phone. */
 export const LEVEL_MS = 15_000;
 
+/** Library mode cuts the three sound steps, so each remaining step lasts longer. */
+export const QUIET_LEVEL_MS = 20_000;
+
 /** Stop stays locked while you are within this many meters of where you started. */
 export const RADIUS_M = 50;
 

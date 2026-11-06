@@ -3,7 +3,7 @@
  * (tick, speak, notify, siren, volume); `overlayFrame` describes what the native overlay draws.
  * Executing them is mac.js and overlay.js's job.
  */
-import { intensity, levelIndexOf } from './ladder.js';
+import { intensity, ladderFor } from './ladder.js';
 import { clock, money } from './format.js';
 import { voiceLine, notifyLine, snitchMessage } from './lines.js';
 
@@ -16,14 +16,7 @@ export const VOLUME_FLOOR = Object.freeze({ tick: 35, siren: 70 });
 /** While a floor is on, push it again this often in case it was turned down or muted. */
 export const VOLUME_REASSERT_MS = 5_000;
 
-const LEVEL = Object.freeze({
-  blur: levelIndexOf('blur'),
-  cost: levelIndexOf('cost'),
-  voice: levelIndexOf('voice'),
-  notify: levelIndexOf('notify'),
-  penalty: levelIndexOf('penalty'),
-  siren: levelIndexOf('siren'),
-});
+const ladderOfSnap = (snap) => ladderFor(snap.quiet === true);
 
 /**
  * Blur comes in waves so the screen stays usable between them. The cycle length is fixed, so the rhythm
@@ -39,11 +32,12 @@ export const BLUR_WAVE = Object.freeze({
 
 /**
  * @param {number} level
+ * @param {ReturnType<typeof ladderFor>} [ladder]
  * @returns {{ onMs: number, offMs: number } | null} null before the blur step
  */
-export function blurWave(level) {
-  if (level < LEVEL.blur) return null;
-  const steps = level - LEVEL.blur;
+export function blurWave(level, ladder = ladderFor(false)) {
+  if (!ladder.reached(level, 'blur')) return null;
+  const steps = level - ladder.stepAt('blur');
   const onMs = Math.min(BLUR_WAVE.onMaxMs, BLUR_WAVE.onStartMs + BLUR_WAVE.onStepMs * steps);
   return Object.freeze({ onMs, offMs: BLUR_WAVE.periodMs - onMs });
 }
@@ -89,13 +83,15 @@ function repeating(on, last, every, now) {
  */
 export function planEffects(plan, snap, now) {
   const active = isActive(snap);
+  const ladder = ladderOfSnap(snap);
   const level = active ? snap.phone.level : -1;
-  const fx = intensity(level);
+  const fx = intensity(level, ladder);
 
+  // Library mode has no tick, voice, or siren steps, so none of these ever fire there.
   const tick = repeating(fx.tickIntervalMs !== null, plan.lastTickAt, fx.tickIntervalMs, now);
-  const voice = repeating(level >= LEVEL.voice, plan.lastVoiceAt, VOICE_EVERY_MS, now);
-  const notify = repeating(level >= LEVEL.notify, plan.lastNotifyAt, NOTIFY_EVERY_MS, now);
-  const siren = level >= LEVEL.siren;
+  const voice = repeating(ladder.reached(level, 'voice'), plan.lastVoiceAt, VOICE_EVERY_MS, now);
+  const notify = repeating(ladder.reached(level, 'notify'), plan.lastNotifyAt, NOTIFY_EVERY_MS, now);
+  const siren = ladder.reached(level, 'siren');
   const volumeFloor = siren ? VOLUME_FLOOR.siren : fx.tickIntervalMs !== null ? VOLUME_FLOOR.tick : null;
   const reassert = volumeFloor !== null && isDue(plan.lastVolumeAt, VOLUME_REASSERT_MS, now);
   const pushVolume = volumeFloor !== plan.volumeFloor || reassert;
@@ -106,7 +102,7 @@ export function planEffects(plan, snap, now) {
     ...(pushVolume ? [{ type: 'volume', floor: volumeFloor }] : []),
     ...(tick.fire ? [{ type: 'tick' }] : []),
     ...(voice.fire ? [{ type: 'say', text: voiceLine(plan.voiceIndex, snap) }] : []),
-    ...(notify.fire ? [{ type: 'notify', ...notifyLine(plan.notifyIndex, snap) }] : []),
+    ...(notify.fire ? [{ type: 'notify', silent: ladder.quiet, ...notifyLine(plan.notifyIndex, snap) }] : []),
   ];
 
   return {
@@ -156,8 +152,9 @@ const INACTIVE_FRAME = Object.freeze({
 export function overlayFrame(snap, now = Date.now()) {
   if (!isActive(snap)) return INACTIVE_FRAME;
   const { level } = snap.phone;
-  const fx = intensity(level);
-  const waveOn = inWave(blurWave(level), now);
+  const ladder = ladderOfSnap(snap);
+  const fx = intensity(level, ladder);
+  const waveOn = inWave(blurWave(level, ladder), now);
   return Object.freeze({
     ...INACTIVE_FRAME,
     active: true,
@@ -165,8 +162,8 @@ export function overlayFrame(snap, now = Date.now()) {
     levelNumber: level + 1,
     levelCount: snap.phone.maxLevel + 1,
     levelName: snap.phone.levelName,
-    costText: level >= LEVEL.cost ? `${money(snap.cost)} of tuition` : null,
-    penaltyText: level >= LEVEL.penalty ? `+${clock(snap.study.penaltyMs)} added to studying` : null,
+    costText: ladder.reached(level, 'cost') ? `${money(snap.cost)} of tuition` : null,
+    penaltyText: ladder.reached(level, 'penalty') ? `+${clock(snap.study.penaltyMs)} added to studying` : null,
     pulseAlpha: fx.pulseAlpha,
     pulsePeriodMs: fx.pulsePeriodMs,
     blur: waveOn ? fx.blur : 0,

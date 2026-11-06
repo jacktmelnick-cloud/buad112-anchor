@@ -973,6 +973,20 @@ figure {
   padding: 2px 6px;
 }
 
+.blank--toggle {
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
 .blank__aside {
   color: var(--ink-soft);
   font-size: var(--text-sm);

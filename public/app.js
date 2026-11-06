@@ -24,6 +24,7 @@ const REMARKS = Object.freeze({
 
 let rules = null;
 let snap = null;
+let rubricMode = null;
 let lastDepositLeft = null;
 let draggingRange = false;
 const geo = { state: 'pending', fix: null, lastSentAt: 0 };
@@ -85,9 +86,12 @@ async function act(button, errorId, path, body) {
 
 /* ---------- one-time builds ---------- */
 
-function buildRubric() {
+/** Build the rubric for a session's mode: library mode has its own shorter, slower ladder. */
+function buildRubric(mode) {
+  rubricMode = mode;
+  const { steps, levelMs } = rules.ladders[mode];
   const list = $('rubric-list');
-  const items = rules.ladder.map((step, i) => {
+  const items = steps.map((step, i) => {
     const li = document.createElement('li');
     li.className = 'rubric__item';
     li.dataset.state = 'ahead';
@@ -105,7 +109,7 @@ function buildRubric() {
     name.textContent = step.name;
     const at = document.createElement('span');
     at.className = 'rubric__at';
-    at.textContent = clock(i * rules.levelMs);
+    at.textContent = clock(i * levelMs);
     const note = document.createElement('span');
     note.className = 'rubric__note';
     note.textContent = step.note;
@@ -236,6 +240,9 @@ function renderDeposit(s) {
 
 function renderSession(s) {
   const { phone, study } = s;
+  const mode = s.quiet ? 'quiet' : 'normal';
+  if (mode !== rubricMode) buildRubric(mode);
+  show('quiet-stamp', s.quiet === true);
   renderDeposit(s);
   setText('course-name', s.config.courseName);
   show('speed-stamp', s.demoSpeed !== 1);
@@ -393,7 +400,8 @@ function readStartForm(form) {
   if (tuitionPerYear === null) {
     return { error: "Enter your college's yearly tuition, like 70,000." };
   }
-  return { value: { studyMinutes, tuitionPerYear, courseName: String(data.get('courseName') ?? '').trim() } };
+  const quiet = data.get('quiet') === 'on';
+  return { value: { studyMinutes, tuitionPerYear, quiet, courseName: String(data.get('courseName') ?? '').trim() } };
 }
 
 function wireEvents() {
@@ -485,7 +493,7 @@ async function init() {
     setText('start-error', 'Anchor is not answering. Start it with npm start, then reload.');
     return;
   }
-  buildRubric();
+  buildRubric('normal');
   buildFeed();
   wireEvents();
   renderAnchorStatus();

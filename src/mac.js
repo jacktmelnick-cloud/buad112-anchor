@@ -170,8 +170,8 @@ export function createMacEffects({ tickPath, sirenPath, volumeFile, silent = fal
     });
   }
 
-  function notify(title, body) {
-    const sound = silent ? '' : ' sound name "Funk"';
+  function notify(title, body, quiet = false) {
+    const sound = silent || quiet ? '' : ' sound name "Funk"';
     launch('osascript', ['-e', `display notification ${asString(body)} with title ${asString(title)}${sound}`]);
   }
 
@@ -186,7 +186,7 @@ export function createMacEffects({ tickPath, sirenPath, volumeFile, silent = fal
           say(action.text);
           return;
         case 'notify':
-          notify(action.title, action.body);
+          notify(action.title, action.body, action.silent === true);
           return;
         case 'siren':
           setSiren(action.on);

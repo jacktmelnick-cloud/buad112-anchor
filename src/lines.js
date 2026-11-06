@@ -1,9 +1,8 @@
 /** What the Mac says out loud and puts in notifications. Blunt about the phone, never cruel. */
 import { spokenDuration, clock, money } from './format.js';
-import { levelIndexOf } from './ladder.js';
+import { ladderFor } from './ladder.js';
 
-const PENALTY_LEVEL = levelIndexOf('penalty');
-const DEPOSIT_LEVEL = levelIndexOf('deposit');
+const reached = (snap, id) => ladderFor(snap.quiet === true).reached(snap.phone.level, id);
 
 /**
  * @param {number} index rotation counter
@@ -18,8 +17,8 @@ export function voiceLine(index, snap) {
     `Still scrolling. ${t}. Put it down.`,
     `That is ${money(snap.cost)} of tuition, gone.`,
     `The phone will still be there in ${spokenDuration(snap.study.remainingMs)}. Put it down.`,
-    ...(snap.phone.level >= PENALTY_LEVEL ? ['Every second now adds two to your study timer.'] : []),
-    ...(snap.phone.level >= DEPOSIT_LEVEL ? [`${money(snap.deposit.left)} of your deposit left.`] : []),
+    ...(reached(snap, 'penalty') ? ['Every second now adds two to your study timer.'] : []),
+    ...(reached(snap, 'deposit') ? [`${money(snap.deposit.left)} of your deposit left.`] : []),
   ];
   return lines[index % lines.length];
 }

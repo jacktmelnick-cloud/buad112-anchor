@@ -181,8 +181,13 @@ async function mobileFlow(browser) {
   check('cover has no sideways scroll at 390 px', overflow <= 0, `${overflow}px`);
   await page.screenshot({ path: path.join(shots, '7-cover-mobile.png'), fullPage: true });
   await page.fill('input[name=tuitionPerYear]', '70000');
+  await page.check('input[name=quiet]');
   await page.click('#start-btn');
   await page.locator('#session').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => document.querySelectorAll('#rubric-list > li').length === 10);
+  check('library mode shows its 10-step rubric', true);
+  check('library mode stamp shows', await page.locator('#quiet-stamp').isVisible());
+  check('library mode steps every 20 seconds', (await page.locator('#rubric-list > li .rubric__at').nth(1).textContent()) === '0:20');
   await page.click('#phone-btn');
   const overflowSession = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check('session has no sideways scroll at 390 px', overflowSession <= 0, `${overflowSession}px`);

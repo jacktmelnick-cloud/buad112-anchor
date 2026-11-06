@@ -40,6 +40,11 @@ The first start compiles the screen overlay (a few seconds).
 **Deposit:** starting a session puts down $5 (play money in this MVP; nothing is charged, no card). It
 follows the phone timer, which never resets during a session, so a lost dollar stays lost.
 
+**Library mode** (a checkbox on the setup screen): no sound at all. No ticking, voice, or siren,
+notifications stay silent, and your volume is never touched. The three sound steps are cut, so the
+remaining steps come every 20 seconds: red at 0:20, blur at 0:40, shake at 1:00, and the deposit still
+starts going at 3:00.
+
 The shake moves a blurred snapshot of your whole screen, so it needs Screen Recording permission for
 the app you run `npm start` from (Terminal already has it on Sam's Mac). Without it, only the screen
 edges rattle, and Anchor prints how to turn it on.

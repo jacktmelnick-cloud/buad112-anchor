@@ -3,7 +3,6 @@
  * nothing here touches the clock, the disk, or the Mac. `now` is always real wall-clock ms.
  */
 import {
-  LEVEL_MS,
   RADIUS_M,
   PENALTY_RATE,
   SNITCH_COUNTDOWN_MS,
@@ -16,17 +15,15 @@ import {
   ANCHOR_MAX_AGE_MS,
   MAX_ACCURACY_MARGIN_M,
 } from './config.js';
-import { LADDER, MAX_LEVEL, levelForPressure, levelIndexOf } from './ladder.js';
+import { ladderFor } from './ladder.js';
 import { distanceMeters } from './geo.js';
 import { normalizePhrase } from './phrase.js';
 
-const PENALTY_LEVEL = levelIndexOf('penalty');
-const SNITCH_LEVEL = levelIndexOf('snitch');
-const CONFESS_LEVEL = levelIndexOf('confess');
-const DEPOSIT_START_MS = levelIndexOf('deposit') * LEVEL_MS;
+/** The session's ladder: library mode (quiet) has no sound steps and 20 s steps. */
+const ladderOf = (state) => ladderFor(state.config?.quiet === true);
 
 /** The punishment clock stops at the top step; the timer you see keeps counting. */
-const PRESSURE_CAP_MS = (MAX_LEVEL + 1) * LEVEL_MS - 1;
+const pressureCap = (ladder) => (ladder.maxLevel + 1) * ladder.levelMs - 1;
 
 /** elapsedMs: time spent on the phone at the anchor since the countdown began (null = not started). */
 const NO_SNITCH = Object.freeze({ elapsedMs: null, sentAt: null });
@@ -101,8 +98,8 @@ export function startSession(state, config, now) {
  * Off the phone or away it simply pauses, so neither dodging nor a long gap (sleep, restart) can
  * stall it or make it fire early.
  */
-function advanceSnitch(snitch, { counts, level, now, realDt }) {
-  if (snitch.sentAt !== null || !counts || level < SNITCH_LEVEL) return snitch;
+function advanceSnitch(snitch, { counts, atSnitch, now, realDt }) {
+  if (snitch.sentAt !== null || !counts || !atSnitch) return snitch;
   if (snitch.elapsedMs === null) return { elapsedMs: 0, sentAt: null };
   const elapsedMs = snitch.elapsedMs + realDt;
   return elapsedMs >= SNITCH_COUNTDOWN_MS ? { elapsedMs, sentAt: now } : { elapsedMs, sentAt: null };
@@ -131,12 +128,13 @@ export function tick(state, now) {
   const away = isAway(state.location);
   // Away from the anchor the phone is just a phone, and the study timer waits for you to come back.
   const counts = state.onPhone && !away;
-  const level = levelForPressure(state.pressureMs);
-  const added = counts && level >= PENALTY_LEVEL ? dt * PENALTY_RATE : 0;
+  const ladder = ladderOf(state);
+  const level = ladder.levelFor(state.pressureMs);
+  const added = counts && ladder.reached(level, 'penalty') ? dt * PENALTY_RATE : 0;
   // One clock for the phone timer and the punishment. It only moves while the phone counts, and it
   // never resets during a session: off the phone or away it pauses, back on it resumes.
-  const pressureMs = counts ? Math.min(PRESSURE_CAP_MS, state.pressureMs + dt) : state.pressureMs;
-  const newLevel = levelForPressure(pressureMs);
+  const pressureMs = counts ? Math.min(pressureCap(ladder), state.pressureMs + dt) : state.pressureMs;
+  const newLevel = ladder.levelFor(pressureMs);
   const next = {
     ...state,
     lastTickAt: now,
@@ -148,7 +146,7 @@ export function tick(state, now) {
     stintMs: counts ? state.stintMs + dt : state.stintMs,
     pressureMs,
     maxLevel: counts ? Math.max(state.maxLevel, newLevel) : state.maxLevel,
-    snitch: advanceSnitch(state.snitch, { counts, level: newLevel, now, realDt }),
+    snitch: advanceSnitch(state.snitch, { counts, atSnitch: ladder.reached(newLevel, 'snitch'), now, realDt }),
   };
   return next.studyElapsedMs >= next.studyTargetMs ? finish(next, now, false) : next;
 }
@@ -259,13 +257,17 @@ const canStopAt = (state) => state.status === 'running' && isAway(state.location
 /** The confession popup is showing: on the phone at the anchor, at its step, and not done yet. */
 function confessionUp(state) {
   const counting = state.status === 'running' && state.onPhone && !isAway(state.location);
-  return counting && !state.confessionDone && levelForPressure(state.pressureMs) >= CONFESS_LEVEL;
+  const ladder = ladderOf(state);
+  return counting && !state.confessionDone && ladder.reached(ladder.levelFor(state.pressureMs), 'confess');
 }
 
 /** Dollars taken from the deposit: $1 at the deposit step, then $1 a minute, never more than the deposit. */
-function depositLost(stintMs, total) {
-  if (stintMs < DEPOSIT_START_MS) return 0;
-  const losses = 1 + Math.floor((stintMs - DEPOSIT_START_MS) / DEPOSIT_LOSS_EVERY_MS);
+function depositLost(state) {
+  const ladder = ladderOf(state);
+  const total = state.deposit ?? DEPOSIT_DOLLARS;
+  const startMs = ladder.stepAt('deposit') * ladder.levelMs;
+  if (state.stintMs < startMs) return 0;
+  const losses = 1 + Math.floor((state.stintMs - startMs) / DEPOSIT_LOSS_EVERY_MS);
   return Math.min(total, losses * DEPOSIT_LOSS_DOLLARS);
 }
 
@@ -306,11 +308,12 @@ function summarize(state) {
     penaltyMs: state.penaltyMs,
     cost: cents((state.phoneMs / 60_000) * state.config.dollarsPerMinute),
     maxLevel: state.maxLevel,
-    maxLevelName: state.pickups > 0 ? LADDER[state.maxLevel].name : null,
+    maxLevelName: state.pickups > 0 ? ladderOf(state).steps[state.maxLevel].name : null,
     endedEarly: state.endedEarly,
     awayMs: state.awayMs ?? 0,
-    depositLeft: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
-    depositLost: depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
+    depositLeft: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state),
+    depositLost: depositLost(state),
+    quiet: ladderOf(state).quiet,
     courseName: state.config.courseName,
   };
 }
@@ -328,7 +331,8 @@ function snitchView(snitch, now) {
  * @param {number} now
  */
 export function snapshot(state, now) {
-  const level = levelForPressure(state.pressureMs);
+  const ladder = ladderOf(state);
+  const level = ladder.levelFor(state.pressureMs);
   const distance = distanceFromAnchor(state.location);
   const unlockAtM = unlockDistance(state.location);
   const running = state.status === 'running';
@@ -336,11 +340,13 @@ export function snapshot(state, now) {
   const phoneCounts = state.onPhone && !away;
   const paused = running && !phoneCounts && state.stintMs > 0;
   const rate = state.config?.dollarsPerMinute ?? 0;
-  const atTop = level < MAX_LEVEL ? (level + 1) * LEVEL_MS - state.pressureMs : null;
+  const atTop = level < ladder.maxLevel ? (level + 1) * ladder.levelMs - state.pressureMs : null;
+  const lost = depositLost(state);
   return {
     status: state.status,
     config: state.config,
     demoSpeed: state.demoSpeed,
+    quiet: ladder.quiet,
     study: {
       elapsedMs: state.studyElapsedMs,
       targetMs: state.studyTargetMs,
@@ -353,10 +359,10 @@ export function snapshot(state, now) {
       totalMs: state.phoneMs,
       pickups: state.pickups,
       level,
-      levelId: LADDER[level].id,
-      levelName: LADDER[level].name,
+      levelId: ladder.steps[level].id,
+      levelName: ladder.steps[level].name,
       restingLevel: paused ? level : null,
-      maxLevel: MAX_LEVEL,
+      maxLevel: ladder.maxLevel,
       nextLevelInMs: phoneCounts && atTop !== null ? atTop / state.demoSpeed : null,
     },
     cost: cents((state.phoneMs / 60_000) * rate),
@@ -373,8 +379,8 @@ export function snapshot(state, now) {
     away,
     deposit: {
       total: state.deposit ?? DEPOSIT_DOLLARS,
-      left: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
-      lost: depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
+      left: (state.deposit ?? DEPOSIT_DOLLARS) - lost,
+      lost,
     },
     snitch: running && phoneCounts ? snitchView(state.snitch, now) : null,
     confession: {

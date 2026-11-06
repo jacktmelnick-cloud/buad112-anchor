@@ -37,7 +37,9 @@ export function parseStart(body) {
     return fail(`Course name must be ${LIMITS.maxCourseName} characters or fewer.`);
   }
   const name = cleaned || DEFAULTS.courseName;
-  return ok({ studyMinutes, dollarsPerMinute, tuitionPerYear: hasTuition ? tuitionPerYear : null, courseName: name });
+  const quiet = body.quiet ?? false;
+  if (typeof quiet !== 'boolean') return fail('Library mode must be on or off.');
+  return ok({ studyMinutes, dollarsPerMinute, tuitionPerYear: hasTuition ? tuitionPerYear : null, courseName: name, quiet });
 }
 
 /** @param {unknown} body */
