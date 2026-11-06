@@ -131,7 +131,7 @@ describe('phone escalation', () => {
     s = advance(s, T0 + 30_000, 5000);
     const snap = snapshot(s, T0 + 35_000);
     assert.equal(snap.phone.totalMs, 25_000);
-    assert.equal(snap.phone.stintMs, 25_000, 'back within the grace period, so the timer continued');
+    assert.equal(snap.phone.stintMs, 25_000, 'the timer never resets during a session');
     assert.equal(snap.study.elapsedMs, 35_000);
   });
 

@@ -113,11 +113,11 @@ describe('store hardening', () => {
     assert.equal(loaded.location.simulatedM, null);
   });
 
-  test('restarts a snitch countdown that was mid-way when the server stopped', () => {
+  test('keeps a snitch countdown that was mid-way when the server stopped', () => {
     const s = startSession(createIdle(), CONFIG, T0);
-    const f = saved({ ...s, onPhone: true, snitch: { startedAt: T0, sentAt: null } });
+    const f = saved({ ...s, onPhone: true, snitch: { elapsedMs: 4000, sentAt: null } });
     const loaded = createStore(f, quietLog).load(T0 + 60_000);
-    assert.equal(loaded.snitch.startedAt, T0 + 60_000);
+    assert.equal(loaded.snitch.elapsedMs, 4000, 'resumes at 4 s in, neither restarted nor fired');
   });
 
   test('writes the session readable only by you', () => {

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createIdle } from './engine.js';
 import { parseStart, parseLocation } from './validate.js';
+import { SNITCH_COUNTDOWN_MS } from './config.js';
 
 const SAVE_EVERY_MS = 1000;
 const STATUSES = new Set(['idle', 'running', 'done']);
@@ -31,12 +32,11 @@ function loadFix(value) {
   return Number.isFinite(value.at) ? { ...parsed.value, at: value.at } : parsed.value;
 }
 
-function loadSnitch(snitch, running, onPhone, now) {
-  const startedAt = finiteOrNull(snitch?.startedAt);
-  const sentAt = finiteOrNull(snitch?.sentAt);
-  // A countdown that was mid-way when the server stopped starts over instead of firing instantly.
-  const restart = running && onPhone && startedAt !== null && sentAt === null;
-  return { startedAt: restart ? now : sentAt === null ? null : startedAt, sentAt };
+/** The countdown is stored as on-phone time, so it resumes where it was. Older wall-clock saves restart it. */
+function loadSnitch(snitch) {
+  const elapsed = snitch?.elapsedMs;
+  const elapsedMs = Number.isFinite(elapsed) && elapsed >= 0 ? Math.min(elapsed, SNITCH_COUNTDOWN_MS) : null;
+  return { elapsedMs, sentAt: finiteOrNull(snitch?.sentAt) };
 }
 
 /**
@@ -76,7 +76,8 @@ export function sanitizeSession(raw, now) {
     onPhone,
     endedEarly: raw.endedEarly === true,
     location: { anchor: loadFix(location.anchor), current: loadFix(location.current), simulatedM: null },
-    snitch: loadSnitch(raw.snitch, running, onPhone, now),
+    snitch: loadSnitch(raw.snitch),
+    pickupCounted: raw.pickupCounted === true,
   };
 }
 

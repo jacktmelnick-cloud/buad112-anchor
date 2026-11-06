@@ -178,7 +178,7 @@ function phoneMeta(s) {
   }
   if (phone.pickups === 0) return 'No pickups yet. Keep it that way.';
   const cost = s.cost > 0 ? ` That is ${money(s.cost)} of tuition.` : '';
-  return `Paused at ${clock(phone.stintMs)}, step ${phone.restingLevel + 1}: ${phone.levelName}. Pick up your phone again and it resumes right there. ${plural(phone.pickups, 'pickup')} so far.${cost}`;
+  return `Paused at ${clock(phone.stintMs)}, step ${phone.level + 1}: ${phone.levelName}. Pick up your phone again and it resumes right there. ${plural(phone.pickups, 'pickup')} so far.${cost}`;
 }
 
 function renderLock(s) {

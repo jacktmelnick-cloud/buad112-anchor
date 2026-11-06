@@ -25,7 +25,7 @@ describe('snitch', () => {
     s = advance(s, T0, reach);
     let t = T0 + reach;
     assert.equal(snapshot(s, t).snitch?.phase, 'countdown');
-    // 6 s of countdown, a 1 s dodge (inside the grace period), then back on.
+    // 6 s of countdown, a 1 s dodge off the phone, then back on.
     s = advance(s, t, 6000);
     t += 6000;
     s = setPhone(s, false, t);
@@ -43,7 +43,7 @@ describe('snitch', () => {
     s = advance(s, T0, reach + 5000);
     const t = T0 + reach + 5000;
     s = setPhone(s, false, t);
-    s = advance(s, t, 2000); // 12 s of sim time at 6x: still inside the grace period
+    s = advance(s, t, 2000); // off the phone: the countdown is paused
     assert.equal(s.snitch.sentAt, null);
   });
 });
@@ -72,7 +72,7 @@ describe('saves from the gradual-cooldown version', () => {
   test('load with the punishment clock matching the timer', () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'anchor-old-')), 'session.json');
     const s = startSession(createIdle(), CONFIG, T0);
-    const { offMs, awayMs, inPickup, ...old } = { ...s, pressureMs: 40_000, stintMs: 0, pickups: 2 };
+    const { awayMs, ...old } = { ...s, pressureMs: 40_000, stintMs: 0, pickups: 2 };
     fs.writeFileSync(file, JSON.stringify(old));
     const loaded = createStore(file, { info() {}, error() {} }).load(T0 + 1000);
     assert.equal(loaded.pressureMs, 0);

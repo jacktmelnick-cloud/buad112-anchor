@@ -53,7 +53,7 @@ describe('on the phone while away', () => {
     s = setSimulatedDistance(s, AWAY_M);
     const t = T0 + 4 * LEVEL_MS + 1000;
     s = advance(s, t, 5000);
-    assert.equal(snapshot(s, t + 5000).phone.level, 4, 'holds while inside the grace period');
+    assert.equal(snapshot(s, t + 5000).phone.level, 4, 'holds while away');
     s = advance(s, t + 5000, 10 * LEVEL_MS);
     assert.equal(snapshot(s, t + 5000 + 10 * LEVEL_MS).phone.level, 4, 'still held, never reset');
   });

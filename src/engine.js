@@ -25,7 +25,8 @@ const CONFESS_LEVEL = levelIndexOf('confess');
 /** The punishment clock stops at the top step; the timer you see keeps counting. */
 const PRESSURE_CAP_MS = (MAX_LEVEL + 1) * LEVEL_MS - 1;
 
-const NO_SNITCH = Object.freeze({ startedAt: null, sentAt: null });
+/** elapsedMs: time spent on the phone at the anchor since the countdown began (null = not started). */
+const NO_SNITCH = Object.freeze({ elapsedMs: null, sentAt: null });
 
 const GRADES = Object.freeze([
   [93, 'A'],
@@ -66,6 +67,7 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     confessedUntil: 0,
     endedEarly: false,
     awayMs: 0,
+    pickupCounted: false,
   };
 }
 
@@ -91,16 +93,15 @@ export function startSession(state, config, now) {
 }
 
 /**
- * The snitch countdown runs only while the phone counts. Off the phone or away it pauses rather than
- * restarting, so dodging off and on can't stall it.
+ * The snitch countdown is measured in time on the phone at the anchor (real time, not demo time).
+ * Off the phone or away it simply pauses, so neither dodging nor a long gap (sleep, restart) can
+ * stall it or make it fire early.
  */
 function advanceSnitch(snitch, { counts, level, now, realDt }) {
-  if (snitch.sentAt !== null) return snitch;
-  if (!counts) return snitch.startedAt === null ? snitch : { ...snitch, startedAt: snitch.startedAt + realDt };
-  if (level < SNITCH_LEVEL) return snitch;
-  if (snitch.startedAt === null) return { startedAt: now, sentAt: null };
-  if (now - snitch.startedAt >= SNITCH_COUNTDOWN_MS) return { ...snitch, sentAt: now };
-  return snitch;
+  if (snitch.sentAt !== null || !counts || level < SNITCH_LEVEL) return snitch;
+  if (snitch.elapsedMs === null) return { elapsedMs: 0, sentAt: null };
+  const elapsedMs = snitch.elapsedMs + realDt;
+  return elapsedMs >= SNITCH_COUNTDOWN_MS ? { elapsedMs, sentAt: now } : { elapsedMs, sentAt: null };
 }
 
 function finish(state, now, endedEarly) {
@@ -160,11 +161,11 @@ export function setPhone(state, onPhone, now) {
   if (onPhone) {
     // Away, the phone is free and nothing counts. At the anchor it's a pickup, resuming where you left off.
     if (isAway(current.location)) return { ...current, onPhone: true };
-    return { ...current, onPhone: true, pickups: current.pickups + 1 };
+    return { ...current, onPhone: true, pickups: current.pickups + 1, pickupCounted: true };
   }
   // A sent bubble that has finished showing re-arms the snitch; a running countdown just pauses.
   const bubbleDone = current.snitch.sentAt !== null && now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
-  return { ...current, onPhone: false, snitch: bubbleDone ? NO_SNITCH : current.snitch };
+  return { ...current, onPhone: false, pickupCounted: false, snitch: bubbleDone ? NO_SNITCH : current.snitch };
 }
 
 /**
@@ -190,15 +191,16 @@ export function setSimulatedDistance(state, meters) {
 }
 
 /**
- * Crossing the line: walking back in while still on the phone is a fresh pickup that starts escalating;
- * walking out cancels a snitch countdown.
+ * Crossing the line. Walking back in while on the phone counts as a pickup (once per time on the
+ * phone, so GPS wobbling across the line can't inflate it); the timer and step resume where they were.
  */
 function settleAway(before, after) {
   if (after.status !== 'running') return after;
   const wasAway = isAway(before.location);
   const nowAway = isAway(after.location);
-  // Walking back in while on the phone is a pickup; the timer and step resume where they were.
-  if (wasAway && !nowAway && after.onPhone) return { ...after, pickups: after.pickups + 1 };
+  if (wasAway && !nowAway && after.onPhone && !after.pickupCounted) {
+    return { ...after, pickups: after.pickups + 1, pickupCounted: true };
+  }
   return after;
 }
 
@@ -288,8 +290,8 @@ function summarize(state) {
 
 function snitchView(snitch, now) {
   if (snitch.sentAt !== null) return now - snitch.sentAt < SNITCH_SENT_VISIBLE_MS ? { phase: 'sent' } : null;
-  if (snitch.startedAt === null) return null;
-  const left = Math.max(0, SNITCH_COUNTDOWN_MS - (now - snitch.startedAt));
+  if (snitch.elapsedMs === null) return null;
+  const left = Math.max(0, SNITCH_COUNTDOWN_MS - snitch.elapsedMs);
   return { phase: 'countdown', secondsLeft: Math.ceil(left / 1000) };
 }
 
