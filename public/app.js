@@ -210,8 +210,8 @@ function renderRubric(s) {
     const state = rubricState(s, i);
     if (li.dataset.state !== state) li.dataset.state = state;
   });
-  const every = `${rules.levelMs / 1000} seconds`;
-  let sub = `One step every ${every} on your phone. It never resets during a session; off the phone it just pauses.`;
+  // Off the phone the paused line under the button says it all, so the rubric stays quiet.
+  let sub = '';
   if (s.phone.onPhone) sub = 'Getting off clears every effect at once.';
   if (s.away) sub = 'Away from your anchor: none of this applies.';
   setText('rubric-sub', sub);

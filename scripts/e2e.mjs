@@ -121,7 +121,12 @@ async function desktopFlow(browser) {
   await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'false');
   check('getting off clears every in-tab effect', (await page.evaluate(() => document.body.dataset.fx)) === 'off');
   check('rubric remembers where the next pickup starts', (await page.locator('#rubric-list > li[data-state="resting"]').count()) === 1);
-  check('shows the phone timer paused where you left off', (await text(page, '#phone-meta')).startsWith('Paused at'), await text(page, '#phone-meta'));
+  check(
+    'paused line gives the time, step, and pickups',
+    /^Paused at \d+:\d\d, step \d+: .+\. Pick up your phone again and it resumes right there\. \d+ pickups? so far\./.test(await text(page, '#phone-meta')),
+    await text(page, '#phone-meta'),
+  );
+  check('no extra rubric line while paused', (await page.locator('#rubric-sub').textContent()) === '' && !(await page.locator('#rubric-sub').isVisible()));
 
   await page.locator('#sim-range').fill('70');
   await page.waitForFunction(() => !document.querySelector('#stop-btn').disabled, null, { timeout: 5000 });

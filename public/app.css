@@ -729,6 +729,10 @@ figure {
   font-size: var(--text-sm);
 }
 
+.rubric__sub:empty {
+  display: none;
+}
+
 .rubric__list {
   display: grid;
   margin-top: 12px;
