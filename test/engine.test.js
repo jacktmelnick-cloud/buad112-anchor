@@ -13,7 +13,7 @@ import {
   resetSession,
   snapshot,
 } from '../src/engine.js';
-import { LEVEL_MS, CONFESSION_PHRASE, SNITCH_COUNTDOWN_MS, CONFESSION_GRACE_MS } from '../src/config.js';
+import { LEVEL_MS, CONFESSION_PHRASE, SNITCH_COUNTDOWN_MS } from '../src/config.js';
 import { levelIndexOf } from '../src/ladder.js';
 
 const T0 = 1_700_000_000_000;
@@ -238,11 +238,11 @@ describe('confession', () => {
     assert.equal(confess(s, 'let me scroll', now), s);
   });
 
-  test('accepts the phrase regardless of case and punctuation, for 30 seconds', () => {
+  test('accepts the phrase regardless of case and punctuation, and never asks again', () => {
     const shouted = `${CONFESSION_PHRASE.toUpperCase()}!!`;
     const s = confess(atTop(), shouted, now);
     assert.equal(snapshot(s, now + 1000).confession.required, false);
-    assert.equal(snapshot(s, now + CONFESSION_GRACE_MS + 1).confession.required, true);
+    assert.equal(snapshot(s, now + 10 * 60_000).confession.required, false);
   });
 });
 

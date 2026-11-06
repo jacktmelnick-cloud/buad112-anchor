@@ -58,6 +58,11 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <span class="blank__prefix" aria-hidden="true">$</span>
             <input class="blank__input" name="tuitionPerYear" type="text" inputmode="numeric" autocomplete="off" placeholder="70,000" aria-describedby="tuition-hint" required>
           </label>
+          <div class="blank blank--wide blank--deposit">
+            <span class="blank__label">Deposit</span>
+            <span class="blank__filled">$5.00</span>
+            <span class="blank__aside">Lose $1 a minute from 3:00 on your phone. Play money for the demo, nothing is charged.</span>
+          </div>
           <div class="blank blank--status" aria-live="polite">
             <span class="blank__label">Anchor</span>
             <span class="anchor-status" id="anchor-status" data-state="pending">
@@ -74,6 +79,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
             <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 15 seconds on it, this Mac gets worse: red, ticking, blur, the whole screen shaking, then talking, a siren.</li>
             <li>Getting off clears everything instantly, but nothing resets: the phone timer pauses, and the next time you pick up your phone it resumes at the same step.</li>
+            <li>You put down a $5 deposit. Hit 3:00 on your phone and it starts going: $1 then, and $1 every minute after until it's gone.</li>
             <li>Walk away from your anchor and your phone is just a phone: nothing goes off and the study timer pauses. Stop it there, or walk back and keep going.</li>
           </ol>
         </section>
@@ -81,7 +87,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
         <div class="cover__actions">
           <button class="btn btn--ink btn--big" type="submit" id="start-btn">
             <svg class="icon"><use href="#i-anchor"/></svg>
-            Drop anchor and start
+            Deposit $5 and start
           </button>
           <p class="form-error" id="start-error" role="alert"></p>
         </div>
@@ -95,6 +101,10 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
       <header class="page__head">
         <p class="page__course" id="course-name">BUAD 112</p>
         <p class="stamp" id="speed-stamp" hidden>Demo speed 6x</p>
+        <p class="deposit-chip" id="deposit-chip" data-lost="false" aria-live="polite">
+          <span class="deposit-chip__label">Deposit</span>
+          <span class="deposit-chip__amount" id="deposit-left">$5</span>
+        </p>
         <p class="lockline" id="lockline" data-locked="true">
           <svg class="icon"><use href="#i-lock" id="lock-icon"/></svg>
           <span id="lock-text">Stop locked</span>
@@ -192,6 +202,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
           <div class="filled__row"><dt>Tuition burned</dt><dd class="is-pen" id="sum-cost">$0.00</dd></div>
           <div class="filled__row"><dt>Worst step</dt><dd class="is-pen" id="sum-worst">None</dd></div>
           <div class="filled__row"><dt>Away from anchor</dt><dd id="sum-away">0:00</dd></div>
+          <div class="filled__row"><dt>Deposit kept</dt><dd id="sum-deposit">$5 of $5</dd></div>
         </dl>
       </div>
 

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createIdle } from './engine.js';
 import { parseStart, parseLocation } from './validate.js';
-import { SNITCH_COUNTDOWN_MS } from './config.js';
+import { SNITCH_COUNTDOWN_MS, DEPOSIT_DOLLARS } from './config.js';
 
 const SAVE_EVERY_MS = 1000;
 const STATUSES = new Set(['idle', 'running', 'done']);
@@ -19,7 +19,6 @@ const COUNTERS = Object.freeze([
   'pressureMs',
   'pickups',
   'maxLevel',
-  'confessedUntil',
 ]);
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -78,6 +77,8 @@ export function sanitizeSession(raw, now) {
     location: { anchor: loadFix(location.anchor), current: loadFix(location.current), simulatedM: null },
     snitch: loadSnitch(raw.snitch),
     pickupCounted: raw.pickupCounted === true,
+    confessionDone: raw.confessionDone === true,
+    deposit: Number.isFinite(raw.deposit) && raw.deposit >= 0 && raw.deposit <= 100 ? raw.deposit : DEPOSIT_DOLLARS,
   };
 }
 

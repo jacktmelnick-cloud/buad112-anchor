@@ -24,6 +24,7 @@ const REMARKS = Object.freeze({
 
 let rules = null;
 let snap = null;
+let lastDepositLeft = null;
 let draggingRange = false;
 const geo = { state: 'pending', fix: null, lastSentAt: 0 };
 
@@ -147,6 +148,7 @@ function render(next) {
     document.body.dataset.view = view;
     ['cover', 'session', 'summary'].forEach((id) => show(id, id === view));
   }
+  if (view !== 'session') lastDepositLeft = null;
   if (view === 'session') renderSession(next);
   if (view === 'summary') renderSummary(next.summary);
   renderPresenter(next);
@@ -217,8 +219,24 @@ function renderRubric(s) {
   setText('rubric-sub', sub);
 }
 
+/** Balance in the page head, with a "-$1" that floats off whenever a dollar goes. */
+function renderDeposit(s) {
+  const { left, lost } = s.deposit;
+  setText('deposit-left', money(left).replace('.00', ''));
+  $('deposit-chip').dataset.lost = String(lost > 0);
+  if (lastDepositLeft !== null && left < lastDepositLeft) {
+    const minus = document.createElement('span');
+    minus.className = 'minus';
+    minus.textContent = `-${money(lastDepositLeft - left).replace('.00', '')}`;
+    minus.addEventListener('animationend', () => minus.remove());
+    $('deposit-chip').append(minus);
+  }
+  lastDepositLeft = left;
+}
+
 function renderSession(s) {
   const { phone, study } = s;
+  renderDeposit(s);
   setText('course-name', s.config.courseName);
   show('speed-stamp', s.demoSpeed !== 1);
   setText('speed-stamp', `Demo speed ${s.demoSpeed}x`);
@@ -264,6 +282,8 @@ function renderSummary(summary) {
   setText('sum-cost', money(summary.cost));
   setText('sum-worst', summary.maxLevelName ?? 'None');
   setText('sum-away', clock(summary.awayMs));
+  setText('sum-deposit', `${money(summary.depositLeft).replace('.00', '')} of ${money(summary.depositLeft + summary.depositLost).replace('.00', '')}`);
+  $('sum-deposit').classList.toggle('is-pen', summary.depositLost > 0);
   setText('summary-sub', summary.endedEarly ? 'Ended early: you walked away from your anchor.' : 'Timer finished. Handed back.');
   setText('remark', REMARKS[summary.grade[0]] ?? '');
 }

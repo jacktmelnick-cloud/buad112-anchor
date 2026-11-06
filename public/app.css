@@ -965,6 +965,66 @@ figure {
   text-align: center;
 }
 
+/* ---------- Deposit ---------- */
+
+.blank__filled {
+  font: 700 1.6rem / 1.25 var(--font-hand);
+  border-bottom: 2px solid var(--ink);
+  padding: 2px 6px;
+}
+
+.blank__aside {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.deposit-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.deposit-chip__label {
+  color: var(--pencil);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deposit-chip__amount {
+  font: 700 1.6rem / 1 var(--font-hand);
+  font-variant-numeric: tabular-nums;
+}
+
+.deposit-chip[data-lost='true'] .deposit-chip__amount {
+  color: var(--pen);
+}
+
+/* "-$1" floats up from the balance each time a dollar goes */
+.minus {
+  position: absolute;
+  right: 0;
+  top: -6px;
+  color: var(--pen);
+  font: 700 1.5rem / 1 var(--font-hand);
+  pointer-events: none;
+  animation: float-off 1400ms var(--ease-out) forwards;
+}
+
+@keyframes float-off {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -36px;
+  }
+}
+
 /* ---------- Status stamps ---------- */
 
 .stamp {

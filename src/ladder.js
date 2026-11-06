@@ -17,7 +17,8 @@ export const LADDER = Object.freeze(
     { id: 'penalty', name: 'Penalty', note: 'Each phone second adds 2 to studying' },
     { id: 'snitch', name: 'Snitch', note: 'Texting your study group' },
     { id: 'siren', name: 'Siren', note: 'Siren, volume forced up' },
-    { id: 'confess', name: 'Confession', note: 'Type it to make the popup leave' },
+    { id: 'confess', name: 'Confession', note: 'Type it to make the popup leave (once)' },
+    { id: 'deposit', name: 'Deposit', note: '-$1 now and every minute until your $5 is gone' },
   ].map((step) => Object.freeze(step)),
 );
 

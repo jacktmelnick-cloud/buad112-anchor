@@ -34,7 +34,11 @@ The first start compiles the screen overlay (a few seconds).
 | 2:00 | Penalty | Each phone second adds 2 s to the study timer |
 | 2:15 | Snitch | "Texting your study group in 10…" then a fake sent message. Nothing is sent |
 | 2:30 | Siren | Siren loop, volume forced to at least 70 |
-| 2:45 | Confession | A popup you make leave by typing "I am choosing my phone over my grade" (buys 30 s) |
+| 2:45 | Confession | A popup you make leave by typing "I am choosing my phone over my grade". Pops up once per session |
+| 3:00 | Deposit | -$1 of your $5 deposit, then -$1 every minute until it's gone (empty at 7:00). The floating bar shows the balance and a red -$1 each time |
+
+**Deposit:** starting a session puts down $5 (play money in this MVP; nothing is charged, no card). It
+follows the phone timer, which never resets during a session, so a lost dollar stays lost.
 
 The shake moves a blurred snapshot of your whole screen, so it needs Screen Recording permission for
 the app you run `npm start` from (Terminal already has it on Sam's Mac). Without it, only the screen

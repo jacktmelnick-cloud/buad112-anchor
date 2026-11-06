@@ -55,6 +55,7 @@ async function desktopFlow(browser) {
   await page.locator('#cover').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.querySelector('#anchor-status').dataset.state === 'ready');
   check('cover shows a ready anchor', (await text(page, '#anchor-status-text')).startsWith('Ready right here'));
+  check('start button places the $5 deposit', (await text(page, '#start-btn')).includes('Deposit $5'));
   await page.screenshot({ path: path.join(shots, '1-cover-desktop.png') });
 
   await page.fill('input[name=studyMinutes]', '0');
@@ -115,6 +116,9 @@ async function desktopFlow(browser) {
   await page.waitForFunction(() => document.querySelector('#confess').hidden, null, { timeout: 5000 });
   check('right confession hides the popup', await page.locator('#confess').isHidden());
   check('penalty shows on the study timer', (await text(page, '#penalty-note')).includes('added for phone time'));
+  await page.waitForFunction(() => document.querySelector('#deposit-left').textContent === '$4', null, { timeout: 15_000 });
+  check('3:00 on the phone takes $1 of the deposit', (await page.locator('#deposit-chip').getAttribute('data-lost')) === 'true');
+  check('a -$1 floats off the balance', (await page.locator('#deposit-chip .minus').count()) >= 1);
   await page.screenshot({ path: path.join(shots, '5-top-step-desktop.png') });
 
   await page.click('#phone-btn');
@@ -147,6 +151,7 @@ async function desktopFlow(browser) {
   const grade = await text(page, '#grade');
   check('summary hands back a grade', /^[ABCDF][+-]?$/.test(grade), grade);
   check('summary says it ended early', (await text(page, '#summary-sub')).startsWith('Ended early'));
+  check('summary shows the deposit kept', /^\$\d of \$5$/.test(await text(page, '#sum-deposit')), await text(page, '#sum-deposit'));
   await page.click('#presenter-toggle');
   await page.waitForTimeout(1300); // let the red circle finish drawing for the screenshot
   await page.screenshot({ path: path.join(shots, '6-summary-desktop.png') });

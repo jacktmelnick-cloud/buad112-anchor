@@ -24,10 +24,10 @@ describe('distanceMeters', () => {
 });
 
 describe('ladder', () => {
-  test('has twelve steps starting with the clock and ending with the confession', () => {
-    assert.equal(LADDER.length, 12);
+  test('has thirteen steps starting with the clock and ending with the deposit', () => {
+    assert.equal(LADDER.length, 13);
     assert.equal(LADDER[0].id, 'clock');
-    assert.equal(LADDER[MAX_LEVEL].id, 'confess');
+    assert.equal(LADDER[MAX_LEVEL].id, 'deposit');
   });
 
   test('goes red, then ticking, then blur, then shake, all inside the first minute on the phone', () => {

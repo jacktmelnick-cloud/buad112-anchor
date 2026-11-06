@@ -18,8 +18,12 @@ export const SNITCH_SENT_VISIBLE_MS = 8_000;
 /** The sentence you have to type at the top step. */
 export const CONFESSION_PHRASE = 'I am choosing my phone over my grade';
 
-/** Quiet time a correct confession buys before the popup comes back. */
-export const CONFESSION_GRACE_MS = 30_000;
+/** The deposit placed at the start of a session (play money in this MVP; nothing is charged). */
+export const DEPOSIT_DOLLARS = 5;
+
+/** From the deposit step on, this much is taken every DEPOSIT_LOSS_EVERY_MS on the phone. */
+export const DEPOSIT_LOSS_DOLLARS = 1;
+export const DEPOSIT_LOSS_EVERY_MS = 60_000;
 
 /** A tick gap longer than this (laptop asleep, stalled loop) is treated as a pause, not session time. */
 export const MAX_TICK_GAP_MS = 2_000;

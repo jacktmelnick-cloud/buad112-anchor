@@ -9,7 +9,7 @@ import path from 'node:path';
 import { parseStart, parseLocation, parsePhone, parseDemo, parseConfess } from './validate.js';
 import { createLogger } from './log.js';
 import { LADDER } from './ladder.js';
-import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS } from './config.js';
+import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS, DEPOSIT_DOLLARS } from './config.js';
 
 const RULES = Object.freeze({
   ladder: LADDER,
@@ -18,6 +18,7 @@ const RULES = Object.freeze({
   confession: CONFESSION_PHRASE,
   classMinutesPerYear: CLASS_MINUTES_PER_YEAR,
   maxTuitionPerYear: LIMITS.maxTuitionPerYear,
+  depositDollars: DEPOSIT_DOLLARS,
 });
 
 const MAX_BODY_BYTES = 8 * 1024;

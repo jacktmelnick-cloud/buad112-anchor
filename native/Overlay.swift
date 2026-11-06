@@ -38,6 +38,8 @@ struct Frame: Decodable {
     let blur: Double
     let shakeAmp: Double
     let shakeReady: Bool
+    let depositLeft: Double?
+    let depositTotal: Double?
     let snitchPhase: String?
     let snitchSeconds: Int?
     let snitchMessage: String?
@@ -47,17 +49,18 @@ struct Frame: Decodable {
 
     static let cleared = Frame(active: false, phoneText: nil, levelNumber: nil, levelCount: nil, levelName: nil,
                                costText: nil, penaltyText: nil, pulseAlpha: 0, pulsePeriodMs: nil, blur: 0,
-                               shakeAmp: 0, shakeReady: false, snitchPhase: nil, snitchSeconds: nil, snitchMessage: nil,
-                               confession: nil)
+                               shakeAmp: 0, shakeReady: false, depositLeft: nil, depositTotal: nil, snitchPhase: nil,
+                               snitchSeconds: nil, snitchMessage: nil, confession: nil)
 
     enum CodingKeys: String, CodingKey {
         case active, phoneText, levelNumber, levelCount, levelName, costText, penaltyText, pulseAlpha, pulsePeriodMs
-        case blur, shakeAmp, shakeReady, snitchPhase, snitchSeconds, snitchMessage, confession
+        case blur, shakeAmp, shakeReady, depositLeft, depositTotal, snitchPhase, snitchSeconds, snitchMessage, confession
     }
 
     init(active: Bool, phoneText: String?, levelNumber: Int?, levelCount: Int?, levelName: String?, costText: String?,
          penaltyText: String?, pulseAlpha: Double, pulsePeriodMs: Double?, blur: Double, shakeAmp: Double,
-         shakeReady: Bool, snitchPhase: String?, snitchSeconds: Int?, snitchMessage: String?, confession: String?) {
+         shakeReady: Bool, depositLeft: Double?, depositTotal: Double?, snitchPhase: String?, snitchSeconds: Int?,
+         snitchMessage: String?, confession: String?) {
         self.active = active
         self.phoneText = phoneText
         self.levelNumber = levelNumber
@@ -70,6 +73,8 @@ struct Frame: Decodable {
         self.blur = blur
         self.shakeAmp = shakeAmp
         self.shakeReady = shakeReady
+        self.depositLeft = depositLeft
+        self.depositTotal = depositTotal
         self.snitchPhase = snitchPhase
         self.snitchSeconds = snitchSeconds
         self.snitchMessage = snitchMessage
@@ -92,6 +97,8 @@ struct Frame: Decodable {
         blur = min(1, max(0, number(.blur)))
         shakeAmp = min(Self.maxShake, max(0, number(.shakeAmp)))
         shakeReady = (try? c.decodeIfPresent(Bool.self, forKey: .shakeReady)).flatMap { $0 } ?? false
+        depositLeft = (try? c.decodeIfPresent(Double.self, forKey: .depositLeft)).flatMap { $0 }.map { max(0, $0) }
+        depositTotal = (try? c.decodeIfPresent(Double.self, forKey: .depositTotal)).flatMap { $0 }.map { max(0, $0) }
         snitchPhase = (try? c.decodeIfPresent(String.self, forKey: .snitchPhase)).flatMap { $0 }
         snitchSeconds = (try? c.decodeIfPresent(Int.self, forKey: .snitchSeconds)).flatMap { $0 }
         snitchMessage = (try? c.decodeIfPresent(String.self, forKey: .snitchMessage)).flatMap { $0 }
@@ -520,19 +527,25 @@ final class ScreenOverlay {
 // MARK: - Floating timer with the off button
 
 final class HUD {
-    static let size = NSSize(width: 580, height: 84)
+    static let size = NSSize(width: 690, height: 84)
+    /// Where the balance sits; the "-$1" floats up from here.
+    private static let balanceFrame = NSRect(x: 420, y: 26, width: 96, height: 44)
 
     let panel: NSPanel
     private let fader: Fader
+    private let body: NSView
     private let time = label("0:00", font: Fonts.pen(38), color: Palette.pen)
     private let caption = label("on your phone", font: Fonts.ui(11, .semibold), color: Palette.pencil)
     private let step = label("", font: Fonts.ui(15, .semibold), color: Palette.ink)
     private let detail = label("", font: Fonts.ui(12), color: Palette.pencil)
+    private let balance = label("$5", font: Fonts.pen(32), color: Palette.ink)
+    private let balanceCaption = label("deposit left", font: Fonts.ui(11, .semibold), color: Palette.pencil)
+    private var lastDeposit: Double?
 
     init(target: AnyObject, offAction: Selector) {
         panel = floatingPanel(NSPanel.self, size: Self.size)
         fader = Fader(panel)
-        let body = card(size: Self.size)
+        body = card(size: Self.size)
         panel.contentView = body
 
         time.frame = NSRect(x: 22, y: 22, width: 118, height: 50)
@@ -542,13 +555,50 @@ final class HUD {
         rule.wantsLayer = true
         rule.layer?.backgroundColor = Palette.pen.withAlphaComponent(0.55).cgColor
 
-        step.frame = NSRect(x: 166, y: 44, width: 236, height: 22)
-        detail.frame = NSRect(x: 166, y: 22, width: 236, height: 18)
+        step.frame = NSRect(x: 166, y: 44, width: 228, height: 22)
+        detail.frame = NSRect(x: 166, y: 22, width: 228, height: 18)
+
+        let divider = NSView(frame: NSRect(x: 404, y: 16, width: 1, height: 52))
+        divider.wantsLayer = true
+        divider.layer?.backgroundColor = Palette.ink.withAlphaComponent(0.15).cgColor
+
+        balance.frame = Self.balanceFrame
+        balance.alignment = .center
+        balanceCaption.frame = NSRect(x: 420, y: 10, width: 96, height: 16)
+        balanceCaption.alignment = .center
 
         let off = inkButton("I'm off my phone", filled: true, target: target, action: offAction)
-        off.frame = NSRect(x: 414, y: 20, width: 148, height: 44)
+        off.frame = NSRect(x: 528, y: 20, width: 148, height: 44)
 
-        [time, caption, rule, step, detail, off].forEach(body.addSubview)
+        [time, caption, rule, step, detail, divider, balance, balanceCaption, off].forEach(body.addSubview)
+    }
+
+    private static func dollars(_ amount: Double) -> String {
+        amount.rounded() == amount ? "$\(Int(amount))" : String(format: "$%.2f", amount)
+    }
+
+    /// Balance in ink while intact, red pen once money has gone; a "-$1" floats off on every loss.
+    private func updateDeposit(_ frame: Frame) {
+        guard let left = frame.depositLeft else { return }
+        balance.stringValue = Self.dollars(left)
+        balance.textColor = left < (frame.depositTotal ?? left) ? Palette.pen : Palette.ink
+        if let last = lastDeposit, left < last { floatMinus(last - left) }
+        lastDeposit = left
+    }
+
+    private func floatMinus(_ amount: Double) {
+        let minus = label("-\(Self.dollars(amount))", font: Fonts.pen(26), color: Palette.pen)
+        minus.alignment = .center
+        minus.frame = Self.balanceFrame.offsetBy(dx: 0, dy: 10)
+        body.addSubview(minus)
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 1.4
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            minus.animator().setFrameOrigin(NSPoint(x: minus.frame.minX, y: minus.frame.minY + 34))
+            minus.animator().alphaValue = 0
+        }, completionHandler: {
+            minus.removeFromSuperview()
+        })
     }
 
     func update(_ frame: Frame) {
@@ -557,6 +607,7 @@ final class HUD {
             step.stringValue = "Step \(frame.levelNumber ?? 1) of \(frame.levelCount ?? 12) · \(frame.levelName ?? "")"
             let extras = [frame.costText, frame.penaltyText].compactMap { $0 }
             detail.stringValue = extras.isEmpty ? "Getting off clears everything." : extras.joined(separator: " · ")
+            updateDeposit(frame)
             position()
         }
         fader.set(frame.active)
@@ -644,7 +695,7 @@ final class ConfessionPanel {
         let body = card(size: Self.size)
         panel.contentView = body
 
-        let title = label("Type this to make the popup leave for 30 seconds", font: Fonts.ui(15, .semibold), color: Palette.ink)
+        let title = label("Type this to make the popup go away", font: Fonts.ui(15, .semibold), color: Palette.ink)
         title.frame = NSRect(x: 26, y: 192, width: 488, height: 22)
         phrase.frame = NSRect(x: 26, y: 146, width: 488, height: 40)
 

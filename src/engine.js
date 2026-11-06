@@ -9,7 +9,9 @@ import {
   SNITCH_COUNTDOWN_MS,
   SNITCH_SENT_VISIBLE_MS,
   CONFESSION_PHRASE,
-  CONFESSION_GRACE_MS,
+  DEPOSIT_DOLLARS,
+  DEPOSIT_LOSS_DOLLARS,
+  DEPOSIT_LOSS_EVERY_MS,
   MAX_TICK_GAP_MS,
   ANCHOR_MAX_AGE_MS,
   MAX_ACCURACY_MARGIN_M,
@@ -21,6 +23,7 @@ import { normalizePhrase } from './phrase.js';
 const PENALTY_LEVEL = levelIndexOf('penalty');
 const SNITCH_LEVEL = levelIndexOf('snitch');
 const CONFESS_LEVEL = levelIndexOf('confess');
+const DEPOSIT_START_MS = levelIndexOf('deposit') * LEVEL_MS;
 
 /** The punishment clock stops at the top step; the timer you see keeps counting. */
 const PRESSURE_CAP_MS = (MAX_LEVEL + 1) * LEVEL_MS - 1;
@@ -64,7 +67,8 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     maxLevel: 0,
     location: { anchor: null, current: currentFix, simulatedM: null },
     snitch: NO_SNITCH,
-    confessedUntil: 0,
+    confessionDone: false,
+    deposit: DEPOSIT_DOLLARS,
     endedEarly: false,
     awayMs: 0,
     pickupCounted: false,
@@ -165,7 +169,14 @@ export function setPhone(state, onPhone, now) {
   }
   // A sent bubble that has finished showing re-arms the snitch; a running countdown just pauses.
   const bubbleDone = current.snitch.sentAt !== null && now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
-  return { ...current, onPhone: false, pickupCounted: false, snitch: bubbleDone ? NO_SNITCH : current.snitch };
+  return {
+    ...current,
+    onPhone: false,
+    pickupCounted: false,
+    snitch: bubbleDone ? NO_SNITCH : current.snitch,
+    // The confession pops up once; getting off the phone while it's up ends it for the session too.
+    confessionDone: current.confessionDone || confessionUp(current),
+  };
 }
 
 /**
@@ -198,6 +209,7 @@ function settleAway(before, after) {
   if (after.status !== 'running') return after;
   const wasAway = isAway(before.location);
   const nowAway = isAway(after.location);
+  if (!wasAway && nowAway && confessionUp(before)) return { ...after, confessionDone: true };
   if (wasAway && !nowAway && after.onPhone && !after.pickupCounted) {
     return { ...after, pickups: after.pickups + 1, pickupCounted: true };
   }
@@ -220,7 +232,7 @@ export function setDemoSpeed(state, speed) {
 export function confess(state, text, now) {
   if (state.status !== 'running' || !state.onPhone || isAway(state.location)) return state;
   if (normalizePhrase(text) !== normalizePhrase(CONFESSION_PHRASE)) return state;
-  return { ...state, confessedUntil: now + CONFESSION_GRACE_MS };
+  return { ...state, confessionDone: true };
 }
 
 function distanceFromAnchor(location) {
@@ -243,6 +255,19 @@ function isAway(location) {
 }
 
 const canStopAt = (state) => state.status === 'running' && isAway(state.location);
+
+/** The confession popup is showing: on the phone at the anchor, at its step, and not done yet. */
+function confessionUp(state) {
+  const counting = state.status === 'running' && state.onPhone && !isAway(state.location);
+  return counting && !state.confessionDone && levelForPressure(state.pressureMs) >= CONFESS_LEVEL;
+}
+
+/** Dollars taken from the deposit: $1 at the deposit step, then $1 a minute, never more than the deposit. */
+function depositLost(stintMs, total) {
+  if (stintMs < DEPOSIT_START_MS) return 0;
+  const losses = 1 + Math.floor((stintMs - DEPOSIT_START_MS) / DEPOSIT_LOSS_EVERY_MS);
+  return Math.min(total, losses * DEPOSIT_LOSS_DOLLARS);
+}
 
 /**
  * End early. Only allowed once you are outside the radius; otherwise the state comes back unchanged.
@@ -284,6 +309,8 @@ function summarize(state) {
     maxLevelName: state.pickups > 0 ? LADDER[state.maxLevel].name : null,
     endedEarly: state.endedEarly,
     awayMs: state.awayMs ?? 0,
+    depositLeft: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
+    depositLost: depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
     courseName: state.config.courseName,
   };
 }
@@ -344,9 +371,14 @@ export function snapshot(state, now) {
     },
     canStop: canStopAt(state),
     away,
+    deposit: {
+      total: state.deposit ?? DEPOSIT_DOLLARS,
+      left: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
+      lost: depositLost(state.stintMs, state.deposit ?? DEPOSIT_DOLLARS),
+    },
     snitch: running && phoneCounts ? snitchView(state.snitch, now) : null,
     confession: {
-      required: running && phoneCounts && level >= CONFESS_LEVEL && now >= state.confessedUntil,
+      required: confessionUp(state),
       phrase: CONFESSION_PHRASE,
     },
     summary: state.status === 'done' ? summarize(state) : null,
