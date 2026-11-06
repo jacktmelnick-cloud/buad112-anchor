@@ -41,7 +41,7 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
   const view = (snap) => ({
     ...snap,
     overlayAvailable: overlay ? overlay.isAvailable() : false,
-    fx: overlayFrame(snap),
+    fx: overlayFrame(snap, now()),
   });
 
   function runAction(action) {
@@ -70,7 +70,7 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
     const planned = planEffects(plan, snap, t);
     plan = planned.plan;
     planned.actions.forEach(runAction);
-    overlay?.send(overlayFrame(snap));
+    overlay?.send(overlayFrame(snap, t));
     persist?.save(state);
     const published = view(snap);
     broadcast(published);

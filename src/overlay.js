@@ -53,6 +53,10 @@ export function createOverlay({ root, fontsDir, onEvent, log }) {
         log.info('Screen overlay is running on every display.');
         return;
       }
+      if (event.e === 'notice') {
+        log.info(String(event.text ?? '').slice(0, 300));
+        return;
+      }
       onEvent(event);
     } catch (error) {
       log.error(`Overlay sent something unreadable: ${line.slice(0, 120)}`, error);

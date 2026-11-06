@@ -5,7 +5,7 @@ refuses the category default of a dark focus-app dashboard with a progress ring.
 OWN-WORLD: Powder-blue cover, navy institutional print in condensed Archivo, white ruled pages with
 a pink margin line, and red pen (Kalam) reserved for phone time, checks, and grades.
 STORY: You fill in the cover, drop an anchor, and study. Picking up your phone gets graded in red,
-louder every 30 seconds, until getting off is the easiest thing on screen.
+louder every 15 seconds, until getting off is the easiest thing on screen.
 FIRST VIEWPORT: Full-bleed cover. ANCHOR printed huge across the top, the blanks (course, minutes,
 tuition) in a printed box, the instructions box, one navy "Drop anchor and start" button.
 FORM: Blue book + grading rubric, first on the list; staging = cover / open page / graded cover.
@@ -54,9 +54,9 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <input class="blank__input" name="studyMinutes" type="number" inputmode="numeric" min="1" max="240" step="1" value="25" required>
           </label>
           <label class="blank blank--short">
-            <span class="blank__label">Tuition / min</span>
+            <span class="blank__label">College tuition / yr</span>
             <span class="blank__prefix" aria-hidden="true">$</span>
-            <input class="blank__input" name="dollarsPerMinute" type="number" inputmode="decimal" min="0" max="100" step="0.05" value="2.50" aria-describedby="tuition-hint">
+            <input class="blank__input" name="tuitionPerYear" type="text" inputmode="numeric" autocomplete="off" placeholder="70,000" aria-describedby="tuition-hint" required>
           </label>
           <div class="blank blank--status" aria-live="polite">
             <span class="blank__label">Anchor</span>
@@ -66,14 +66,14 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             </span>
           </div>
         </div>
-        <p class="cover__hint" id="tuition-hint">Tuition per minute powers the cost counter. Use your own number; tuition divided by class hours works.</p>
+        <p class="cover__hint" id="tuition-hint">What does your college charge a year? Anchor turns it into what one minute of class costs you.</p>
 
         <section class="instructions" aria-labelledby="instructions-title">
           <h2 class="instructions__title" id="instructions-title">Instructions</h2>
           <ol class="instructions__list">
             <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
-            <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 30 seconds on it, this Mac gets worse: red, ticking, talking, blur, siren.</li>
-            <li>Getting off clears everything instantly. The step you reached cools down one step per 30 seconds, so quick toggles don't reset it.</li>
+            <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 15 seconds on it, this Mac gets worse: red, ticking, blur, the whole screen shaking, then talking, a siren.</li>
+            <li>Getting off clears everything instantly. The step you reached cools down one step per 15 seconds, so quick toggles don't reset it.</li>
           </ol>
         </section>
 
@@ -139,7 +139,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
 
         <aside class="rubric" aria-labelledby="rubric-title">
           <h2 class="rubric__title" id="rubric-title">Phone rubric</h2>
-          <p class="rubric__sub" id="rubric-sub">One step every 30 seconds on your phone.</p>
+          <p class="rubric__sub" id="rubric-sub">One step every 15 seconds on your phone.</p>
           <ol class="rubric__list" id="rubric-list"></ol>
         </aside>
       </div>
@@ -217,7 +217,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
         <legend>Speed</legend>
         <div class="seg" role="group" aria-label="Demo speed">
           <button class="seg__btn" type="button" data-speed="1" aria-pressed="true">1x</button>
-          <button class="seg__btn" type="button" data-speed="6" aria-pressed="false">6x (a step every 5 s)</button>
+          <button class="seg__btn" type="button" data-speed="6" aria-pressed="false">6x (a step every 2.5 s)</button>
         </div>
       </fieldset>
       <fieldset class="presenter__group">

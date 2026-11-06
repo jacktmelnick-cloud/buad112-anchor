@@ -203,7 +203,8 @@ function renderRubric(s) {
     else if (hasHistory) state = i < phone.restingLevel ? 'cooling' : i === phone.restingLevel ? 'resting' : 'ahead';
     if (li.dataset.state !== state) li.dataset.state = state;
   });
-  setText('rubric-sub', phone.onPhone ? 'Getting off clears every effect at once.' : 'One step every 30 seconds on your phone. Cools down one step per 30 seconds off it.');
+  const every = `${rules.levelMs / 1000} seconds`;
+  setText('rubric-sub', phone.onPhone ? 'Getting off clears every effect at once.' : `One step every ${every} on your phone. Cools down one step per ${every} off it.`);
 }
 
 function renderSession(s) {
@@ -289,8 +290,8 @@ function renderFallbackFx(s) {
   if (!fx) return;
   body.style.setProperty('--fx-alpha', String(fx.pulseAlpha));
   body.style.setProperty('--fx-half-period', `${(fx.pulsePeriodMs ?? 3000) / 2}ms`);
-  body.style.setProperty('--fx-gray', String(Math.min(1, fx.dim * 2.4)));
   body.style.setProperty('--fx-blur', `${(fx.blur * 7).toFixed(1)}px`);
+  body.style.setProperty('--shake-amp', `${fx.shakeAmp}px`);
 }
 
 /* ---------- location ---------- */
@@ -324,20 +325,45 @@ function startLocation() {
 
 /* ---------- events ---------- */
 
+/** Plain digits, US thousands groups, optional cents, optional "k": "$70,000", "70000", "70k". */
+const TUITION_PATTERN = /^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?k?$/;
+
+/** Returns whole dollars a year, or null when the text isn't a usable yearly amount. */
+function parseTuition(raw) {
+  const text = String(raw ?? '').trim().toLowerCase().replace(/[$\s]/g, '');
+  if (!TUITION_PATTERN.test(text)) return null;
+  const amount = Number(text.replace(/[,k]/g, '')) * (text.endsWith('k') ? 1000 : 1);
+  return amount >= 1 && amount <= rules.maxTuitionPerYear ? Math.round(amount) : null;
+}
+
+function renderTuitionHint() {
+  if (!rules) return;
+  const tuition = parseTuition(document.querySelector('input[name=tuitionPerYear]').value);
+  const hours = rules.classMinutesPerYear / 60;
+  setText(
+    'tuition-hint',
+    tuition === null
+      ? 'What does your college charge a year? Anchor turns it into what one minute of class costs you.'
+      : `$${tuition.toLocaleString('en-US')} a year ÷ ${hours} class hours = ${money(tuition / rules.classMinutesPerYear)} for every minute of class.`,
+  );
+}
+
 function readStartForm(form) {
   const data = new FormData(form);
   const studyMinutes = Number(data.get('studyMinutes'));
-  const dollarsPerMinute = Number(data.get('dollarsPerMinute') || 0);
+  const tuitionPerYear = parseTuition(data.get('tuitionPerYear'));
   if (!Number.isInteger(studyMinutes) || studyMinutes < 1 || studyMinutes > 240) {
     return { error: 'Minutes must be a whole number from 1 to 240.' };
   }
-  if (!Number.isFinite(dollarsPerMinute) || dollarsPerMinute < 0 || dollarsPerMinute > 100) {
-    return { error: 'Tuition per minute must be between $0 and $100.' };
+  if (tuitionPerYear === null) {
+    return { error: "Enter your college's yearly tuition, like 70,000." };
   }
-  return { value: { studyMinutes, dollarsPerMinute, courseName: String(data.get('courseName') ?? '').trim() } };
+  return { value: { studyMinutes, tuitionPerYear, courseName: String(data.get('courseName') ?? '').trim() } };
 }
 
 function wireEvents() {
+  document.querySelector('input[name=tuitionPerYear]').addEventListener('input', renderTuitionHint);
+
   $('start-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const parsed = readStartForm(event.currentTarget);

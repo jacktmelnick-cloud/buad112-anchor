@@ -49,6 +49,7 @@ One authored moment: the page settles onto the desk when a session starts. Red p
 
 ## Effects layer
 
-Mac-wide effects come from the native overlay (red pulse, gray drain, blur and shake, floating timer).
+Mac-wide effects come from the native overlay (red pulse, blur, a full-screen vibration made from a blurred
+snapshot jolted over a black backdrop, floating timer).
 If the overlay is unavailable the page falls back to drawing the same effects inside the tab.
 Red pulses never exceed 1 flash per 1.2 s.

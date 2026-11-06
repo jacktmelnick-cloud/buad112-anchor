@@ -1,10 +1,16 @@
 // Anchor overlay helper.
 // Draws the "you're on your phone" punishment over every app, Space, and display:
-// a red pulse, a gray drain, a behind-window blur that shakes, a floating timer with an
+// a red pulse, a behind-window blur, a full-screen vibration, a floating timer with an
 // "I'm off my phone" button, the fake snitch text, and the confession popup.
 //
+// The vibration: a behind-window blur can't move what's under it, so at the shake step the helper
+// snapshots each display about once a second (ScreenCaptureKit, excluding its own windows), blurs the
+// snapshot, and jolts it around a black backdrop. Without Screen Recording permission it falls back
+// to a jittering black frame around the screen edges and reports that once.
+//
 // Protocol: one JSON frame per line on stdin (see src/effects.js overlayFrame).
-// Events go out as JSON lines on stdout: {"e":"ready"}, {"e":"off"}, {"e":"confess","text":"..."}.
+// Events go out as JSON lines on stdout: {"e":"ready"}, {"e":"off"}, {"e":"confess","text":"..."},
+// {"e":"notice","text":"..."}.
 //
 // Safety: the screen must never stay red after the server stops. The process exits straight from
 // the reader thread when stdin closes, and a watchdog on a background queue exits after 5 seconds
@@ -12,8 +18,10 @@
 // screen) and never count as a heartbeat. Everything except the two panels is click-through.
 
 import AppKit
+import CoreImage
 import CoreText
 import QuartzCore
+import ScreenCaptureKit
 
 // MARK: - Protocol
 
@@ -27,26 +35,29 @@ struct Frame: Decodable {
     let penaltyText: String?
     let pulseAlpha: Double
     let pulsePeriodMs: Double?
-    let dim: Double
     let blur: Double
-    let shake: Bool
+    let shakeAmp: Double
+    let shakeReady: Bool
     let snitchPhase: String?
     let snitchSeconds: Int?
     let snitchMessage: String?
     let confession: String?
 
+    static let maxShake: Double = 40
+
     static let cleared = Frame(active: false, phoneText: nil, levelNumber: nil, levelCount: nil, levelName: nil,
-                               costText: nil, penaltyText: nil, pulseAlpha: 0, pulsePeriodMs: nil, dim: 0, blur: 0,
-                               shake: false, snitchPhase: nil, snitchSeconds: nil, snitchMessage: nil, confession: nil)
+                               costText: nil, penaltyText: nil, pulseAlpha: 0, pulsePeriodMs: nil, blur: 0,
+                               shakeAmp: 0, shakeReady: false, snitchPhase: nil, snitchSeconds: nil, snitchMessage: nil,
+                               confession: nil)
 
     enum CodingKeys: String, CodingKey {
         case active, phoneText, levelNumber, levelCount, levelName, costText, penaltyText, pulseAlpha, pulsePeriodMs
-        case dim, blur, shake, snitchPhase, snitchSeconds, snitchMessage, confession
+        case blur, shakeAmp, shakeReady, snitchPhase, snitchSeconds, snitchMessage, confession
     }
 
     init(active: Bool, phoneText: String?, levelNumber: Int?, levelCount: Int?, levelName: String?, costText: String?,
-         penaltyText: String?, pulseAlpha: Double, pulsePeriodMs: Double?, dim: Double, blur: Double, shake: Bool,
-         snitchPhase: String?, snitchSeconds: Int?, snitchMessage: String?, confession: String?) {
+         penaltyText: String?, pulseAlpha: Double, pulsePeriodMs: Double?, blur: Double, shakeAmp: Double,
+         shakeReady: Bool, snitchPhase: String?, snitchSeconds: Int?, snitchMessage: String?, confession: String?) {
         self.active = active
         self.phoneText = phoneText
         self.levelNumber = levelNumber
@@ -56,9 +67,9 @@ struct Frame: Decodable {
         self.penaltyText = penaltyText
         self.pulseAlpha = pulseAlpha
         self.pulsePeriodMs = pulsePeriodMs
-        self.dim = dim
         self.blur = blur
-        self.shake = shake
+        self.shakeAmp = shakeAmp
+        self.shakeReady = shakeReady
         self.snitchPhase = snitchPhase
         self.snitchSeconds = snitchSeconds
         self.snitchMessage = snitchMessage
@@ -68,24 +79,26 @@ struct Frame: Decodable {
     /// Missing visual fields default to "off" and every intensity is clamped, so a partial frame can't stick.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let unit = { (key: CodingKeys) -> Double in min(1, max(0, (try? c.decodeIfPresent(Double.self, forKey: key)) ?? 0)) }
-        active = (try? c.decodeIfPresent(Bool.self, forKey: .active)) ?? false
-        phoneText = try? c.decodeIfPresent(String.self, forKey: .phoneText)
-        levelNumber = try? c.decodeIfPresent(Int.self, forKey: .levelNumber)
-        levelCount = try? c.decodeIfPresent(Int.self, forKey: .levelCount)
-        levelName = try? c.decodeIfPresent(String.self, forKey: .levelName)
-        costText = try? c.decodeIfPresent(String.self, forKey: .costText)
-        penaltyText = try? c.decodeIfPresent(String.self, forKey: .penaltyText)
-        pulseAlpha = unit(.pulseAlpha)
+        let number = { (key: CodingKeys) -> Double in (try? c.decodeIfPresent(Double.self, forKey: key)).flatMap { $0 } ?? 0 }
+        active = (try? c.decodeIfPresent(Bool.self, forKey: .active)).flatMap { $0 } ?? false
+        phoneText = (try? c.decodeIfPresent(String.self, forKey: .phoneText)).flatMap { $0 }
+        levelNumber = (try? c.decodeIfPresent(Int.self, forKey: .levelNumber)).flatMap { $0 }
+        levelCount = (try? c.decodeIfPresent(Int.self, forKey: .levelCount)).flatMap { $0 }
+        levelName = (try? c.decodeIfPresent(String.self, forKey: .levelName)).flatMap { $0 }
+        costText = (try? c.decodeIfPresent(String.self, forKey: .costText)).flatMap { $0 }
+        penaltyText = (try? c.decodeIfPresent(String.self, forKey: .penaltyText)).flatMap { $0 }
+        pulseAlpha = min(1, max(0, number(.pulseAlpha)))
         pulsePeriodMs = (try? c.decodeIfPresent(Double.self, forKey: .pulsePeriodMs)).flatMap { $0 }.map { max(1200, $0) }
-        dim = unit(.dim)
-        blur = unit(.blur)
-        shake = (try? c.decodeIfPresent(Bool.self, forKey: .shake)) ?? false
-        snitchPhase = try? c.decodeIfPresent(String.self, forKey: .snitchPhase)
-        snitchSeconds = try? c.decodeIfPresent(Int.self, forKey: .snitchSeconds)
-        snitchMessage = try? c.decodeIfPresent(String.self, forKey: .snitchMessage)
-        confession = try? c.decodeIfPresent(String.self, forKey: .confession)
+        blur = min(1, max(0, number(.blur)))
+        shakeAmp = min(Self.maxShake, max(0, number(.shakeAmp)))
+        shakeReady = (try? c.decodeIfPresent(Bool.self, forKey: .shakeReady)).flatMap { $0 } ?? false
+        snitchPhase = (try? c.decodeIfPresent(String.self, forKey: .snitchPhase)).flatMap { $0 }
+        snitchSeconds = (try? c.decodeIfPresent(Int.self, forKey: .snitchSeconds)).flatMap { $0 }
+        snitchMessage = (try? c.decodeIfPresent(String.self, forKey: .snitchMessage)).flatMap { $0 }
+        confession = (try? c.decodeIfPresent(String.self, forKey: .confession)).flatMap { $0 }
     }
+
+    var shaking: Bool { active && shakeAmp > 0 }
 }
 
 /// Write one event line. If the server stopped reading, there is nothing left to draw for: exit.
@@ -138,7 +151,7 @@ enum Palette {
     static let ink = NSColor(srgbRed: 0.078, green: 0.157, blue: 0.294, alpha: 1)     // #14284B
     static let pen = NSColor(srgbRed: 0.843, green: 0.149, blue: 0.180, alpha: 1)     // #D7262E
     static let pencil = NSColor(srgbRed: 0.333, green: 0.400, blue: 0.510, alpha: 1)  // #556682
-    static let drain = NSColor(srgbRed: 0.231, green: 0.247, blue: 0.282, alpha: 1)
+    static let shade = NSColor(srgbRed: 0.231, green: 0.247, blue: 0.282, alpha: 1)
     static let bubble = NSColor(srgbRed: 0.039, green: 0.478, blue: 1.0, alpha: 1)
 }
 
@@ -249,21 +262,111 @@ func topCenter(_ size: NSSize, below offset: CGFloat) -> NSPoint? {
     return NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - offset)
 }
 
+func displayID(of screen: NSScreen) -> CGDirectDisplayID? {
+    (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { CGDirectDisplayID($0.uint32Value) }
+}
+
+// MARK: - Screen snapshots for the vibration
+
+final class ScreenSnapper {
+    private static let interval: TimeInterval = 1.0
+    private static let blurSigma: Double = 14
+    /// A capture that hasn't finished in this long is treated as lost, so the loop recovers.
+    private static let stuckAfter: TimeInterval = 5
+
+    private let context = CIContext()
+    private var timer: Timer?
+    private var busy = false
+    private var busySince: Date?
+    private var reportedDenied = false
+    var onImage: ((CGDirectDisplayID, CGImage) -> Void)?
+
+    var running: Bool { timer != nil }
+
+    func start() {
+        guard timer == nil else { return }
+        guard CGPreflightScreenCaptureAccess() else {
+            if !reportedDenied {
+                reportedDenied = true
+                emit(["e": "notice", "text": "Screen Recording is off for the app running Anchor, so the shake only rattles the screen edges. Turn it on in System Settings > Privacy & Security > Screen Recording, then restart Anchor."])
+            }
+            return
+        }
+        capture()
+        timer = Timer.scheduledTimer(withTimeInterval: Self.interval, repeats: true) { [weak self] _ in self?.capture() }
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func capture() {
+        if busy, let since = busySince, Date().timeIntervalSince(since) < Self.stuckAfter { return }
+        busy = true
+        busySince = Date()
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, _ in
+            guard let self else { return }
+            guard let content else {
+                DispatchQueue.main.async { self.busy = false }
+                return
+            }
+            let mine = content.applications.filter { $0.processID == getpid() }
+            let group = DispatchGroup()
+            for display in content.displays {
+                let filter = SCContentFilter(display: display, excludingApplications: mine, exceptingWindows: [])
+                let config = SCStreamConfiguration()
+                config.width = display.width
+                config.height = display.height
+                config.showsCursor = false
+                group.enter()
+                SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, _ in
+                    defer { group.leave() }
+                    guard let image, let blurred = self.blurred(image) else { return }
+                    let id = display.displayID
+                    DispatchQueue.main.async { if self.running { self.onImage?(id, blurred) } }
+                }
+            }
+            group.notify(queue: .main) { self.busy = false }
+        }
+    }
+
+    private func blurred(_ image: CGImage) -> CGImage? {
+        let source = CIImage(cgImage: image)
+        let output = source.clampedToExtent().applyingGaussianBlur(sigma: Self.blurSigma).cropped(to: source.extent)
+        return context.createCGImage(output, from: source.extent)
+    }
+}
+
 // MARK: - Full-screen layer, one per display
 
 final class ScreenOverlay {
-    private static let bleed: CGFloat = 40
+    private static let bleed: CGFloat = 60
     private static let fadeSeconds = 0.6
+    /// Offsets (in units of the amplitude) for one 0.36 s buzz cycle: fast jitter plus two hard lurches.
+    private static let buzz: [(Double, Double)] = [
+        (0.3, -0.2), (-0.35, 0.25), (1, -0.5), (-0.3, 0.3), (0.25, 0.35), (-0.4, -0.2),
+        (0.35, 0.15), (-1, 0.6), (0.3, -0.35), (-0.25, 0.2), (0.4, -0.3), (-0.3, -0.25),
+    ]
 
     let window: NSWindow
-    private let stage: NSView
-    private let tint: NSView
     private let blurView: NSVisualEffectView
-    private let dimLayer = CALayer()
+    private let backdrop = CALayer()
+    private let shaker = CALayer()
+    private let snapLayer = CALayer()
+    private let edgeLayer = CALayer()
+    private let shadeLayer = CALayer()
     private let redLayer = CALayer()
     private var pulseKey = ""
-    private var shaking = false
+    private var shakeAmp: Double = 0
     private var active = false
+    private var snapshotAt: Date?
+    /// Only shake a snapshot that is current; an old one would show a screen that no longer exists.
+    private static let snapshotMaxAge: TimeInterval = 3
+    private var hasSnapshot: Bool {
+        guard let at = snapshotAt, snapLayer.contents != nil else { return false }
+        return Date().timeIntervalSince(at) < Self.snapshotMaxAge
+    }
 
     init(screen: NSScreen) {
         window = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
@@ -281,54 +384,64 @@ final class ScreenOverlay {
         root.autoresizingMask = [.width, .height]
         window.contentView = root
 
-        // Oversized so the shake never reveals an unblurred edge.
-        stage = NSView(frame: root.bounds.insetBy(dx: -Self.bleed, dy: -Self.bleed))
-        stage.wantsLayer = true
-        stage.autoresizingMask = [.width, .height]
-        root.addSubview(stage)
-
-        blurView = NSVisualEffectView(frame: stage.bounds)
+        blurView = NSVisualEffectView(frame: root.bounds)
         blurView.material = .fullScreenUI
         blurView.blendingMode = .behindWindow
         blurView.state = .active
         blurView.appearance = NSAppearance(named: .aqua)
         blurView.alphaValue = 0
         blurView.autoresizingMask = [.width, .height]
-        stage.addSubview(blurView)
+        root.addSubview(blurView)
 
-        // Layer-hosting view: we own these layers, so AppKit never resets their opacity.
-        tint = NSView(frame: stage.bounds)
+        // Layer-hosting view: we own these layers, so AppKit never resets them.
+        let tint = NSView(frame: root.bounds)
         let host = CALayer()
         tint.layer = host
         tint.wantsLayer = true
         tint.autoresizingMask = [.width, .height]
-        for layer in [dimLayer, redLayer] {
-            layer.frame = tint.bounds
-            layer.opacity = 0
-            host.addSublayer(layer)
-        }
-        dimLayer.backgroundColor = Palette.drain.cgColor
+        root.addSubview(tint)
+
+        backdrop.backgroundColor = NSColor.black.cgColor
+        snapLayer.contentsGravity = .resize
+        edgeLayer.borderColor = NSColor.black.withAlphaComponent(0.92).cgColor
+        shadeLayer.backgroundColor = Palette.shade.cgColor
         redLayer.backgroundColor = Palette.pen.cgColor
-        stage.addSubview(tint)
+        for layer in [backdrop, snapLayer, edgeLayer, shadeLayer, redLayer] { layer.opacity = 0 }
+        shaker.addSublayer(snapLayer)
+        shaker.addSublayer(edgeLayer)
+        [backdrop, shaker, shadeLayer, redLayer].forEach(host.addSublayer)
 
         place(on: screen)
     }
 
     func place(on screen: NSScreen) {
         window.setFrame(screen.frame, display: false)
-        let bounds = stage.bounds
+        let bounds = CGRect(origin: .zero, size: screen.frame.size)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        dimLayer.frame = bounds
+        backdrop.frame = bounds
+        shaker.frame = bounds
+        snapLayer.frame = bounds
+        edgeLayer.frame = bounds.insetBy(dx: -Self.bleed, dy: -Self.bleed)
+        edgeLayer.borderWidth = Self.bleed + 14
+        shadeLayer.frame = bounds
         redLayer.frame = bounds
         CATransaction.commit()
     }
 
+    func setSnapshot(_ image: CGImage?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        snapLayer.contents = image
+        snapshotAt = image == nil ? nil : Date()
+        CATransaction.commit()
+        updateShakeLayers()
+    }
+
     func apply(_ frame: Frame, reduceTransparency: Bool) {
         let blur = reduceTransparency ? 0 : frame.blur
-        // With Reduce Transparency on, the blur would render solid; deepen the drain instead.
-        let dim = reduceTransparency ? min(0.6, frame.dim + frame.blur * 0.25) : frame.dim
-        let becameActive = frame.active && !active
+        // With Reduce Transparency on, the blur would render solid; shade the screen instead.
+        let shade = reduceTransparency ? frame.blur * 0.5 : 0
         active = frame.active
         if frame.active { window.orderFrontRegardless() }
 
@@ -342,15 +455,16 @@ final class ScreenOverlay {
         })
         CATransaction.begin()
         CATransaction.setAnimationDuration(Self.fadeSeconds)
-        dimLayer.opacity = Float(dim)
+        shadeLayer.opacity = Float(shade)
         CATransaction.commit()
-        updatePulse(alpha: frame.pulseAlpha, periodMs: frame.pulsePeriodMs, force: becameActive)
-        updateShake(frame.shake)
+        updatePulse(alpha: frame.active ? frame.pulseAlpha : 0, periodMs: frame.pulsePeriodMs)
+        updateShake(frame.shaking ? frame.shakeAmp : 0)
+        updateShakeLayers() // re-checks snapshot freshness every frame
     }
 
-    private func updatePulse(alpha: Double, periodMs: Double?, force: Bool) {
+    private func updatePulse(alpha: Double, periodMs: Double?) {
         let key = "\(alpha)|\(periodMs ?? 0)"
-        guard key != pulseKey || force else { return }
+        guard key != pulseKey else { return }
         pulseKey = key
         redLayer.removeAnimation(forKey: "pulse")
         redLayer.opacity = 0
@@ -365,24 +479,36 @@ final class ScreenOverlay {
         redLayer.add(pulse, forKey: "pulse")
     }
 
-    private func updateShake(_ on: Bool) {
-        guard on != shaking, let layer = stage.layer else { return }
-        shaking = on
-        guard on else {
-            layer.removeAnimation(forKey: "shake")
-            return
-        }
+    private func updateShake(_ amp: Double) {
+        guard amp != shakeAmp else { return }
+        shakeAmp = amp
+        shaker.removeAnimation(forKey: "vibrate")
+        updateShakeLayers()
+        guard amp > 0 else { return }
         let x = CAKeyframeAnimation(keyPath: "transform.translation.x")
-        x.values = [0, -10, 8, -6, 11, -8, 5, 0]
-        x.duration = 0.62
+        x.values = Self.buzz.map { $0.0 * amp }
         let y = CAKeyframeAnimation(keyPath: "transform.translation.y")
-        y.values = [0, 6, -7, 4, -5, 7, -3, 0]
-        y.duration = 0.62
+        y.values = Self.buzz.map { $0.1 * amp }
+        for axis in [x, y] {
+            axis.calculationMode = .discrete
+            axis.duration = 0.36
+        }
         let group = CAAnimationGroup()
         group.animations = [x, y]
-        group.duration = 0.62
+        group.duration = 0.36
         group.repeatCount = .infinity
-        layer.add(group, forKey: "shake")
+        shaker.add(group, forKey: "vibrate")
+    }
+
+    /// Snapshot on a black backdrop when we have one; otherwise just a rattling black frame at the edges.
+    private func updateShakeLayers() {
+        let shaking = shakeAmp > 0
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        backdrop.opacity = shaking && hasSnapshot ? 1 : 0
+        snapLayer.opacity = shaking && hasSnapshot ? 1 : 0
+        edgeLayer.opacity = shaking ? 1 : 0
+        CATransaction.commit()
     }
 
     func close() {
@@ -569,6 +695,7 @@ final class Controller: NSObject {
     private var hud: HUD!
     private var snitch: SnitchCard!
     private var confession: ConfessionPanel!
+    private let snapper = ScreenSnapper()
     private var lastFrame = Frame.cleared
 
     override init() {
@@ -576,6 +703,7 @@ final class Controller: NSObject {
         hud = HUD(target: self, offAction: #selector(offPressed))
         snitch = SnitchCard()
         confession = ConfessionPanel(target: self, confessAction: #selector(confessPressed), offAction: #selector(offPressed))
+        snapper.onImage = { [weak self] id, image in self?.overlays[id]?.setSnapshot(image) }
         syncScreens()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -583,6 +711,13 @@ final class Controller: NSObject {
 
     func apply(_ frame: Frame) {
         lastFrame = frame
+        // Keep snapshots fresh for the whole shake step, so each burst starts on a current screen.
+        if frame.active && (frame.shakeReady || frame.shaking) {
+            snapper.start()
+        } else if snapper.running {
+            snapper.stop()
+            overlays.values.forEach { $0.setSnapshot(nil) }
+        }
         let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         overlays.values.forEach { $0.apply(frame, reduceTransparency: reduce) }
         hud.update(frame)
@@ -592,10 +727,7 @@ final class Controller: NSObject {
 
     /// Keep one overlay per display: reuse the ones that still exist, add new displays, drop removed ones.
     private func syncScreens() {
-        let screens = NSScreen.screens.compactMap { screen -> (CGDirectDisplayID, NSScreen)? in
-            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
-            return (CGDirectDisplayID(number.uint32Value), screen)
-        }
+        let screens = NSScreen.screens.compactMap { screen in displayID(of: screen).map { ($0, screen) } }
         let live = Set(screens.map(\.0))
         overlays.filter { !live.contains($0.key) }.forEach { id, overlay in
             overlay.close()

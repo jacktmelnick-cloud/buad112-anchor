@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { distanceMeters } from '../src/geo.js';
 import { LADDER, MAX_LEVEL, levelForPressure, levelIndexOf, intensity } from '../src/ladder.js';
+import { LEVEL_MS } from '../src/config.js';
 import { clock, spokenDuration, money } from '../src/format.js';
 import { sirenWav, SIREN_SAMPLE_RATE } from '../src/audio.js';
 import { normalizePhrase } from '../src/phrase.js';
@@ -29,10 +30,19 @@ describe('ladder', () => {
     assert.equal(LADDER[MAX_LEVEL].id, 'confess');
   });
 
+  test('goes red, then ticking, then blur, then shake, all inside the first minute on the phone', () => {
+    assert.deepEqual(LADDER.slice(0, 5).map((s) => s.id), ['clock', 'pulse', 'tick', 'blur', 'shake']);
+    assert.ok(levelIndexOf('shake') * LEVEL_MS <= 60_000);
+  });
+
+  test('has no drain step any more', () => {
+    assert.throws(() => levelIndexOf('drain'));
+  });
+
   test('maps pressure to levels and clamps', () => {
     assert.equal(levelForPressure(0), 0);
-    assert.equal(levelForPressure(29_999), 0);
-    assert.equal(levelForPressure(30_000), 1);
+    assert.equal(levelForPressure(LEVEL_MS - 1), 0);
+    assert.equal(levelForPressure(LEVEL_MS), 1);
     assert.equal(levelForPressure(10 * 60_000), MAX_LEVEL);
     assert.equal(levelForPressure(-5), 0);
   });
@@ -50,12 +60,22 @@ describe('ladder', () => {
   });
 
   test('turns effects on only from their own step', () => {
+    const at = levelIndexOf;
     assert.equal(intensity(0).pulseAlpha, 0);
-    assert.ok(intensity(1).pulseAlpha > 0);
-    assert.equal(intensity(5).blur, 0);
-    assert.ok(intensity(6).blur > 0);
-    assert.equal(intensity(1).tickIntervalMs, null);
-    assert.ok(intensity(MAX_LEVEL).tickIntervalMs < intensity(2).tickIntervalMs);
+    assert.ok(intensity(at('pulse')).pulseAlpha > 0);
+    assert.equal(intensity(at('blur') - 1).blur, 0);
+    assert.ok(intensity(at('blur')).blur > 0);
+    assert.equal(intensity(at('tick') - 1).tickIntervalMs, null);
+    assert.ok(intensity(MAX_LEVEL).tickIntervalMs < intensity(at('tick')).tickIntervalMs);
+  });
+
+  test('shakes hard from the shake step and harder after', () => {
+    const at = levelIndexOf('shake');
+    assert.equal(intensity(at - 1).shakeAmp, 0);
+    assert.ok(intensity(at).shakeAmp >= 16, 'starts as a real vibration, not a wobble');
+    assert.ok(intensity(MAX_LEVEL).shakeAmp > intensity(at).shakeAmp);
+    assert.ok(intensity(MAX_LEVEL).shakeAmp <= 40, 'stays inside the overlay bleed');
+    assert.equal('dim' in intensity(MAX_LEVEL), false);
   });
 });
 

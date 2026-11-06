@@ -1,7 +1,7 @@
 /** Tunable constants for the session rules. Times are in milliseconds unless named otherwise. */
 
 /** One step up the annoyance ladder per this much time on the phone. */
-export const LEVEL_MS = 30_000;
+export const LEVEL_MS = 15_000;
 
 /** Stop stays locked while you are within this many meters of where you started. */
 export const RADIUS_M = 50;
@@ -30,8 +30,14 @@ export const ANCHOR_MAX_AGE_MS = 30_000;
 /** GPS margin added to the radius before Stop unlocks: the worse accuracy, capped at this. */
 export const MAX_ACCURACY_MARGIN_M = 50;
 
-/** Presenter speeds: 1x is real time, 6x turns each 30 s step into 5 s. */
+/** Presenter speeds: 1x is real time, 6x turns each 15 s step into 2.5 s. */
 export const DEMO_SPEEDS = Object.freeze([1, 6]);
+
+/**
+ * Class minutes in a school year, used to turn yearly tuition into "what one minute of class costs":
+ * 15 class hours a week x 15-week semesters x 2 semesters = 450 hours = 27,000 minutes.
+ */
+export const CLASS_MINUTES_PER_YEAR = 15 * 15 * 2 * 60;
 
 export const DEFAULTS = Object.freeze({
   studyMinutes: 25,
@@ -43,6 +49,7 @@ export const LIMITS = Object.freeze({
   minStudyMinutes: 1,
   maxStudyMinutes: 240,
   maxDollarsPerMinute: 100,
+  maxTuitionPerYear: 500_000,
   maxCourseName: 40,
   maxSimulatedM: 500,
   maxConfession: 200,

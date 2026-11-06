@@ -9,9 +9,16 @@ import path from 'node:path';
 import { parseStart, parseLocation, parsePhone, parseDemo, parseConfess } from './validate.js';
 import { createLogger } from './log.js';
 import { LADDER } from './ladder.js';
-import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE } from './config.js';
+import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS } from './config.js';
 
-const RULES = Object.freeze({ ladder: LADDER, levelMs: LEVEL_MS, radiusM: RADIUS_M, confession: CONFESSION_PHRASE });
+const RULES = Object.freeze({
+  ladder: LADDER,
+  levelMs: LEVEL_MS,
+  radiusM: RADIUS_M,
+  confession: CONFESSION_PHRASE,
+  classMinutesPerYear: CLASS_MINUTES_PER_YEAR,
+  maxTuitionPerYear: LIMITS.maxTuitionPerYear,
+});
 
 const MAX_BODY_BYTES = 8 * 1024;
 const LOOPBACK_HOSTS = Object.freeze(['localhost', '127.0.0.1']);

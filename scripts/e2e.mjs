@@ -63,6 +63,12 @@ async function desktopFlow(browser) {
 
   await page.fill('input[name=studyMinutes]', '25');
   await page.click('#start-btn');
+  check('asks for college tuition before starting', (await text(page, '#start-error')).toLowerCase().includes('tuition'));
+  await page.fill('input[name=tuitionPerYear]', '$70,000');
+  check('shows the per-minute math live', (await text(page, '#tuition-hint')).includes('$2.59'), await text(page, '#tuition-hint'));
+
+  await page.fill('input[name=studyMinutes]', '25');
+  await page.click('#start-btn');
   await page.locator('#session').waitFor({ state: 'visible' });
   const studyTime = await text(page, '#study-time');
   check('session starts at 25 minutes', /^(25:00|24:5\d)$/.test(studyTime), studyTime);
@@ -83,8 +89,14 @@ async function desktopFlow(browser) {
   check('in-tab red pulse runs when the overlay is off', (await page.evaluate(() => document.body.dataset.fxPulse)) === 'on');
   await page.screenshot({ path: path.join(shots, '3-on-phone-step3-desktop.png') });
 
-  await page.waitForFunction(() => document.querySelector('#rubric-list').children[6].dataset.state === 'current', null, { timeout: 40_000 });
-  check('blur and shake by step 7', (await page.evaluate(() => [document.body.dataset.fxBlur, document.body.dataset.fxShake].join())) === 'on,on');
+  await page.waitForFunction(() => document.querySelector('#rubric-list').children[3].dataset.state === 'current', null, { timeout: 30_000 });
+  await page.waitForFunction(() => document.body.dataset.fxBlur === 'on', null, { timeout: 8000 });
+  check('step 4 blurs without shaking yet', (await page.evaluate(() => document.body.dataset.fxShake)) === 'off');
+  await page.waitForFunction(() => document.body.dataset.fxBlur === 'off', null, { timeout: 8000 });
+  check('the blur lifts between waves while still on the phone', (await page.locator('#phone-btn').getAttribute('aria-pressed')) === 'true');
+  await page.waitForFunction(() => document.querySelector('#rubric-list').children[4].dataset.state === 'current', null, { timeout: 30_000 });
+  await page.waitForFunction(() => document.body.dataset.fxShake === 'on', null, { timeout: 8000 });
+  check('step 5 blurs and shakes together', (await page.evaluate(() => document.body.dataset.fxBlur)) === 'on');
   const offButtonVisible = await page.locator('#phone-btn').isVisible();
   check('off button stays usable through the blur', offButtonVisible);
   await page.screenshot({ path: path.join(shots, '4-on-phone-step7-desktop.png') });
@@ -143,6 +155,7 @@ async function mobileFlow(browser) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check('cover has no sideways scroll at 390 px', overflow <= 0, `${overflow}px`);
   await page.screenshot({ path: path.join(shots, '7-cover-mobile.png'), fullPage: true });
+  await page.fill('input[name=tuitionPerYear]', '70000');
   await page.click('#start-btn');
   await page.locator('#session').waitFor({ state: 'visible' });
   await page.click('#phone-btn');

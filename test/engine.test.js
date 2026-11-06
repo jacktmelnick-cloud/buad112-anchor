@@ -75,7 +75,8 @@ describe('tick', () => {
 });
 
 describe('phone escalation', () => {
-  test('climbs one level every 30 seconds on the phone', () => {
+  test('climbs one level every step-length (15 s) on the phone', () => {
+    assert.equal(LEVEL_MS, 15_000);
     let s = setPhone(running(), true, T0);
     assert.equal(snapshot(s, T0).phone.level, 0);
     s = advance(s, T0, LEVEL_MS);
@@ -91,21 +92,23 @@ describe('phone escalation', () => {
     assert.equal(snap.phone.level, snap.phone.maxLevel);
   });
 
-  test('decays one level per 30 seconds off the phone instead of resetting', () => {
+  test('decays one level per step-length off the phone instead of resetting', () => {
+    const onFor = 3 * LEVEL_MS + 5000; // level 3
     let s = setPhone(running(), true, T0);
-    s = advance(s, T0, 95_000); // level 3
-    s = setPhone(s, false, T0 + 95_000);
-    s = advance(s, T0 + 95_000, 30_000);
-    assert.equal(snapshot(s, T0 + 125_000).phone.restingLevel, 2);
+    s = advance(s, T0, onFor);
+    s = setPhone(s, false, T0 + onFor);
+    s = advance(s, T0 + onFor, LEVEL_MS);
+    assert.equal(snapshot(s, T0 + onFor + LEVEL_MS).phone.restingLevel, 2);
   });
 
   test('a quick off-and-on toggle does not reset the level', () => {
+    const onFor = 2 * LEVEL_MS; // level 2
     let s = setPhone(running(), true, T0);
-    s = advance(s, T0, 60_000); // level 2
-    s = setPhone(s, false, T0 + 60_000);
-    s = advance(s, T0 + 60_000, 2000);
-    s = setPhone(s, true, T0 + 62_000);
-    assert.equal(snapshot(s, T0 + 62_000).phone.level, 1);
+    s = advance(s, T0, onFor);
+    s = setPhone(s, false, T0 + onFor);
+    s = advance(s, T0 + onFor, 2000);
+    s = setPhone(s, true, T0 + onFor + 2000);
+    assert.equal(snapshot(s, T0 + onFor + 2000).phone.level, 1);
   });
 
   test('counts pickups only when going onto the phone', () => {

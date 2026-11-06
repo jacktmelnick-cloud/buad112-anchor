@@ -172,7 +172,8 @@ describe('rules', () => {
     const body = await (await fetch(`${base}/api/rules`)).json();
     assert.equal(body.data.ladder.length, 12);
     assert.equal(body.data.radiusM, 50);
-    assert.equal(body.data.levelMs, 30_000);
+    assert.equal(body.data.levelMs, 15_000);
+    assert.equal(body.data.classMinutesPerYear, 27_000);
   });
 });
 

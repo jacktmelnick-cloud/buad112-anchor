@@ -10,20 +10,21 @@ web
 College students studying solo at a library, dorm, or cafe with their phone within reach. They start a study block, then lose minutes to their phone without noticing. In the class demo, the audience is a BUAD112 section watching a live walkthrough.
 
 ## Product Purpose
-Anchor is a study timer you cannot quietly quit. You drop an anchor where you study; while you are within 50 m of it, Stop is locked. Every 30 seconds you spend on your phone during the session, the device gets more annoying, until getting off the phone is the easiest thing to do. Success: phone time per session goes down, and sessions end because the timer finished, not because the user gave up.
+Anchor is a study timer you cannot quietly quit. You drop an anchor where you study; while you are within 50 m of it, Stop is locked. Every 15 seconds you spend on your phone during the session, the device gets more annoying, until getting off the phone is the easiest thing to do. Success: phone time per session goes down, and sessions end because the timer finished, not because the user gave up.
 
 ## Positioning
 Other study timers and focus apps can be switched off from the same device that is distracting you. Anchor ties the off switch to a physical place: the only way to stop early is to walk away from the spot. Escalation punishes staying on the phone, never getting off it.
 
 ## Operating Context
 - Class MVP that runs on localhost on a Mac. A test button ("I'm on my phone") stands in for actually picking up a phone; the Mac plays the part of the phone.
-- Effects reach the whole Mac, not just the browser tab: a native overlay pulses the screen red, blurs it, plays sound, speaks, and posts notifications in any app or tab.
+- Effects reach the whole Mac, not just the browser tab: a native overlay pulses the screen red, blurs it, shakes the whole screen, plays sound, speaks, and posts notifications in any app or tab.
 - Presented live to a class, so a demo-speed control and a "simulate walking away" control exist for the presenter.
 
 ## Capabilities and Constraints
 - Study timer (user sets minutes), separate phone timer, 50 m geofence via browser location, Stop locked inside the radius.
-- Escalation ladder, one step per 30 s on the phone; effects stack; the "I'm off my phone" control is always one click away and clears every effect at once.
-- Escalation decays one step per 30 s off the phone rather than resetting, so quick toggles do not help.
+- Escalation ladder, one step per 15 s on the phone, in this order: red pulse, ticking, blur, full-screen shake, then the rest. Effects stack; the "I'm off my phone" control is always one click away and clears every effect at once.
+- Escalation decays one step per 15 s off the phone rather than resetting, so quick toggles do not help.
+- The cost counter comes from the college's yearly tuition the user enters, divided by 450 class hours a year (27,000 minutes).
 - Session state lives on the local server, so closing the tab does not end it.
 - Confirmed by the team: no full-screen lockout that blocks the Mac; the snitch text is faked on screen and nothing is sent.
 - Undecided: product name ("Anchor" is a working name).
@@ -32,7 +33,7 @@ Other study timers and focus apps can be switched off from the same device that 
 None yet. Voice: blunt and funny about phone use, never cruel about the person.
 
 ## Evidence on Hand
-No users, metrics, or testimonials exist. The tuition cost counter uses a dollars-per-minute number the user sets; it is not a claim about any school's tuition.
+No users, metrics, or testimonials exist. The tuition cost counter uses the yearly tuition the user types in; it is not a claim about any school's tuition.
 
 ## Product Principles
 1. Getting off the phone is always the easiest action on screen.

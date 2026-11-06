@@ -1,7 +1,15 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createIdle, startSession, setPhone, tick, snapshot } from '../src/engine.js';
-import { createPlan, planEffects, overlayFrame, VOICE_EVERY_MS, NOTIFY_EVERY_MS, VOLUME_FLOOR } from '../src/effects.js';
+import {
+  createPlan,
+  planEffects,
+  overlayFrame,
+  blurWave,
+  VOICE_EVERY_MS,
+  NOTIFY_EVERY_MS,
+  VOLUME_FLOOR,
+} from '../src/effects.js';
 import { LEVEL_MS } from '../src/config.js';
 import { levelIndexOf, MAX_LEVEL } from '../src/ladder.js';
 
@@ -98,6 +106,7 @@ describe('overlayFrame', () => {
     assert.equal(frame.active, false);
     assert.equal(frame.pulseAlpha, 0);
     assert.equal(frame.blur, 0);
+    assert.equal(frame.shakeAmp, 0);
   });
 
   test('shows the phone timer and level from the first second', () => {
@@ -110,10 +119,52 @@ describe('overlayFrame', () => {
   });
 
   test('adds the cost receipt, blur, and shake at their levels', () => {
-    assert.match(overlayFrame(onPhoneAt(levelIndexOf('cost')).snap).costText, /^\$\d+\.\d\d of tuition$/);
-    const blurred = overlayFrame(onPhoneAt(levelIndexOf('blur')).snap);
+    const ON = 0; // a moment inside a blur wave
+    assert.match(overlayFrame(onPhoneAt(levelIndexOf('cost')).snap, ON).costText, /^\$\d+\.\d\d of tuition$/);
+    const blurred = overlayFrame(onPhoneAt(levelIndexOf('blur')).snap, ON);
     assert.ok(blurred.blur > 0);
-    assert.equal(blurred.shake, true);
+    assert.equal(blurred.shakeAmp, 0, 'blur comes first, shake one step later');
+    const shaking = overlayFrame(onPhoneAt(levelIndexOf('shake')).snap, ON);
+    assert.ok(shaking.shakeAmp > 0);
+    assert.equal(shaking.shake, true);
+    assert.equal('dim' in shaking, false);
+  });
+
+  test('blur comes in waves, so the screen is clear and usable between them', () => {
+    const { snap } = onPhoneAt(levelIndexOf('blur'));
+    const wave = blurWave(levelIndexOf('blur'));
+    assert.ok(overlayFrame(snap, 0).blur > 0, 'blurred at the start of a wave');
+    const clear = overlayFrame(snap, wave.onMs + 10);
+    assert.equal(clear.blur, 0, 'clear between waves');
+    assert.equal(clear.active, true, 'still on the phone, timer still showing');
+    assert.ok(overlayFrame(snap, wave.onMs + wave.offMs).blur > 0, 'and the next wave comes back');
+  });
+
+  test('the shake buzzes only during blur waves, but stays ready for the next one', () => {
+    const { snap } = onPhoneAt(levelIndexOf('shake'));
+    const wave = blurWave(levelIndexOf('shake'));
+    assert.ok(overlayFrame(snap, 0).shakeAmp > 0);
+    const between = overlayFrame(snap, wave.onMs + 10);
+    assert.equal(between.shakeAmp, 0);
+    assert.equal(between.shakeReady, true, 'the overlay keeps a fresh snapshot for the next burst');
+  });
+
+  test('waves get longer and the clear gaps shorter, but a gap always remains', () => {
+    const first = blurWave(levelIndexOf('blur'));
+    const top = blurWave(MAX_LEVEL);
+    assert.ok(top.onMs > first.onMs);
+    assert.ok(top.offMs < first.offMs);
+    assert.ok(top.offMs >= 1500, 'at least 1.5 s to see the screen');
+    assert.equal(blurWave(levelIndexOf('blur') - 1), null, 'no waves before the blur step');
+  });
+
+  test('the wave rhythm never jumps when the step changes', () => {
+    const periods = new Set();
+    for (let level = levelIndexOf('blur'); level <= MAX_LEVEL; level += 1) {
+      const wave = blurWave(level);
+      periods.add(wave.onMs + wave.offMs);
+    }
+    assert.equal(periods.size, 1);
   });
 
   test('asks for the confession at the top level', () => {

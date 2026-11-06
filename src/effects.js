@@ -17,12 +17,43 @@ export const VOLUME_FLOOR = Object.freeze({ tick: 35, siren: 70 });
 export const VOLUME_REASSERT_MS = 5_000;
 
 const LEVEL = Object.freeze({
+  blur: levelIndexOf('blur'),
   cost: levelIndexOf('cost'),
   voice: levelIndexOf('voice'),
   notify: levelIndexOf('notify'),
   penalty: levelIndexOf('penalty'),
   siren: levelIndexOf('siren'),
 });
+
+/**
+ * Blur comes in waves so the screen stays usable between them. The cycle length is fixed, so the rhythm
+ * never jumps when the step changes; each step past the blur step just makes more of it blurred, leaving
+ * a clear gap of at least 1.5 s.
+ */
+export const BLUR_WAVE = Object.freeze({
+  periodMs: 5500,
+  onStartMs: 2500,
+  onStepMs: 500,
+  onMaxMs: 4000,
+});
+
+/**
+ * @param {number} level
+ * @returns {{ onMs: number, offMs: number } | null} null before the blur step
+ */
+export function blurWave(level) {
+  if (level < LEVEL.blur) return null;
+  const steps = level - LEVEL.blur;
+  const onMs = Math.min(BLUR_WAVE.onMaxMs, BLUR_WAVE.onStartMs + BLUR_WAVE.onStepMs * steps);
+  return Object.freeze({ onMs, offMs: BLUR_WAVE.periodMs - onMs });
+}
+
+/** Real-time phase, so waves keep a human rhythm even at 6x demo speed. */
+function inWave(wave, now) {
+  if (!wave) return false;
+  const period = wave.onMs + wave.offMs;
+  return ((now % period) + period) % period < wave.onMs;
+}
 
 export function createPlan() {
   return Object.freeze({
@@ -103,9 +134,10 @@ const INACTIVE_FRAME = Object.freeze({
   penaltyText: null,
   pulseAlpha: 0,
   pulsePeriodMs: null,
-  dim: 0,
   blur: 0,
   shake: false,
+  shakeAmp: 0,
+  shakeReady: false,
   snitchPhase: null,
   snitchSeconds: null,
   snitchMessage: null,
@@ -114,12 +146,15 @@ const INACTIVE_FRAME = Object.freeze({
 
 /**
  * What the native overlay should draw right now. Flat on purpose so Swift can decode it directly.
+ * Blur and shake only show inside a blur wave; `shakeReady` keeps the overlay's snapshots warm between waves.
  * @param {ReturnType<typeof import('./engine.js').snapshot>} snap
+ * @param {number} [now] real ms, for the blur wave phase
  */
-export function overlayFrame(snap) {
+export function overlayFrame(snap, now = Date.now()) {
   if (!isActive(snap)) return INACTIVE_FRAME;
   const { level } = snap.phone;
   const fx = intensity(level);
+  const waveOn = inWave(blurWave(level), now);
   return Object.freeze({
     ...INACTIVE_FRAME,
     active: true,
@@ -131,9 +166,10 @@ export function overlayFrame(snap) {
     penaltyText: level >= LEVEL.penalty ? `+${clock(snap.study.penaltyMs)} added to studying` : null,
     pulseAlpha: fx.pulseAlpha,
     pulsePeriodMs: fx.pulsePeriodMs,
-    dim: fx.dim,
-    blur: fx.blur,
-    shake: fx.shake,
+    blur: waveOn ? fx.blur : 0,
+    shake: waveOn && fx.shake,
+    shakeAmp: waveOn ? fx.shakeAmp : 0,
+    shakeReady: fx.shakeAmp > 0,
     snitchPhase: snap.snitch?.phase ?? null,
     snitchSeconds: snap.snitch?.phase === 'countdown' ? snap.snitch.secondsLeft : null,
     snitchMessage: snap.snitch ? snitchMessage(snap) : null,

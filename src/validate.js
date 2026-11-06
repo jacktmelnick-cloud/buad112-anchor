@@ -2,7 +2,7 @@
  * Input validation for everything that crosses the HTTP boundary.
  * Each parser returns `{ ok: true, value }` or `{ ok: false, error }` with a message fit to show a person.
  */
-import { DEFAULTS, LIMITS, DEMO_SPEEDS } from './config.js';
+import { DEFAULTS, LIMITS, DEMO_SPEEDS, CLASS_MINUTES_PER_YEAR } from './config.js';
 
 const ok = (value) => ({ ok: true, value });
 const fail = (error) => ({ ok: false, error });
@@ -14,7 +14,14 @@ const inRange = (v, min, max) => isFiniteNumber(v) && v >= min && v <= max;
 /** @param {unknown} body */
 export function parseStart(body) {
   if (!isPlainObject(body)) return fail('Send the session settings as a JSON object.');
-  const { studyMinutes, dollarsPerMinute = DEFAULTS.dollarsPerMinute, courseName = DEFAULTS.courseName } = body;
+  const { studyMinutes, tuitionPerYear, courseName = DEFAULTS.courseName } = body;
+  const hasTuition = tuitionPerYear !== undefined && tuitionPerYear !== null;
+  if (hasTuition && !inRange(tuitionPerYear, 1, LIMITS.maxTuitionPerYear)) {
+    return fail('College tuition must be a yearly amount from $1 to $500,000.');
+  }
+  const dollarsPerMinute = hasTuition
+    ? tuitionPerYear / CLASS_MINUTES_PER_YEAR
+    : (body.dollarsPerMinute ?? DEFAULTS.dollarsPerMinute);
 
   const minutesOk =
     Number.isInteger(studyMinutes) && studyMinutes >= LIMITS.minStudyMinutes && studyMinutes <= LIMITS.maxStudyMinutes;
@@ -30,7 +37,7 @@ export function parseStart(body) {
     return fail(`Course name must be ${LIMITS.maxCourseName} characters or fewer.`);
   }
   const name = cleaned || DEFAULTS.courseName;
-  return ok({ studyMinutes, dollarsPerMinute, courseName: name });
+  return ok({ studyMinutes, dollarsPerMinute, tuitionPerYear: hasTuition ? tuitionPerYear : null, courseName: name });
 }
 
 /** @param {unknown} body */

@@ -1107,13 +1107,13 @@ body[data-fx-pulse='on'] .fx {
 }
 
 body[data-fx='on'] :is(.page__head, .study__label, .study__time, .pen-note, .phone-meta, .stop, .rubric, .phone) {
-  filter: grayscale(var(--fx-gray, 0)) blur(var(--fx-blur, 0px));
+  filter: blur(var(--fx-blur, 0px));
   transition: filter 600ms var(--ease-out);
 }
 
 /* Shake only what is blurred, so the page never becomes a stacking context above the floating off button. */
 body[data-fx-shake='on'] :is(.page__head, .study__label, .study__time, .pen-note, .phone-meta, .stop, .rubric, .phone) {
-  animation: shake 620ms linear infinite;
+  animation: vibrate 360ms steps(1, end) infinite;
 }
 
 body[data-fx-blur='on'] .phone-control {
@@ -1184,26 +1184,20 @@ body[data-fx-blur='on'] .phone-control {
   }
 }
 
-@keyframes shake {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  15% {
-    translate: -9px 5px;
-  }
-  30% {
-    translate: 7px -6px;
-  }
-  45% {
-    translate: -5px 4px;
-  }
-  60% {
-    translate: 9px -4px;
-  }
-  75% {
-    translate: -6px 6px;
-  }
+/* A phone-on-a-table buzz: fast small jitter with two hard lurches per cycle. */
+@keyframes vibrate {
+  0% { translate: calc(var(--shake-amp) * 0.3) calc(var(--shake-amp) * -0.2); }
+  8% { translate: calc(var(--shake-amp) * -0.35) calc(var(--shake-amp) * 0.25); }
+  16% { translate: calc(var(--shake-amp) * 1) calc(var(--shake-amp) * -0.5); }
+  24% { translate: calc(var(--shake-amp) * -0.3) calc(var(--shake-amp) * 0.3); }
+  32% { translate: calc(var(--shake-amp) * 0.25) calc(var(--shake-amp) * 0.35); }
+  40% { translate: calc(var(--shake-amp) * -0.4) calc(var(--shake-amp) * -0.2); }
+  48% { translate: calc(var(--shake-amp) * 0.35) calc(var(--shake-amp) * 0.15); }
+  56% { translate: calc(var(--shake-amp) * -1) calc(var(--shake-amp) * 0.6); }
+  64% { translate: calc(var(--shake-amp) * 0.3) calc(var(--shake-amp) * -0.35); }
+  72% { translate: calc(var(--shake-amp) * -0.25) calc(var(--shake-amp) * 0.2); }
+  80% { translate: calc(var(--shake-amp) * 0.4) calc(var(--shake-amp) * -0.3); }
+  88% { translate: calc(var(--shake-amp) * -0.3) calc(var(--shake-amp) * -0.25); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,10 +9,10 @@ export const LADDER = Object.freeze(
     { id: 'clock', name: 'Clock', note: 'A phone timer follows you into every app' },
     { id: 'pulse', name: 'Red pulse', note: 'The whole screen pulses red' },
     { id: 'tick', name: 'Ticking', note: 'A clock ticks, faster every step' },
-    { id: 'drain', name: 'Drain', note: 'The screen dims to gray' },
+    { id: 'blur', name: 'Blur', note: 'The screen blurs in waves, a few clear seconds between' },
+    { id: 'shake', name: 'Shake', note: 'Every blur wave shakes the whole screen' },
     { id: 'cost', name: 'Receipt', note: 'Tuition burned, counted live' },
     { id: 'voice', name: 'Voice', note: 'Your Mac starts talking to you' },
-    { id: 'blur', name: 'Blur and shake', note: 'Everything blurs and wobbles' },
     { id: 'notify', name: 'Notifications', note: 'A banner every 10 seconds' },
     { id: 'penalty', name: 'Penalty', note: 'Each phone second adds 2 to studying' },
     { id: 'snitch', name: 'Snitch', note: 'Texting your study group' },
@@ -45,9 +45,14 @@ export function levelForPressure(pressureMs) {
 const STEP = Object.freeze({
   pulse: levelIndexOf('pulse'),
   tick: levelIndexOf('tick'),
-  drain: levelIndexOf('drain'),
   blur: levelIndexOf('blur'),
+  shake: levelIndexOf('shake'),
 });
+
+/** Screen vibration in points: starts violent, gets worse, stays inside the overlay's 60-point bleed. */
+const SHAKE_START_PT = 18;
+const SHAKE_STEP_PT = 3;
+const SHAKE_MAX_PT = 36;
 
 /** Steps past the one that switched an effect on, or -1 when it is not on yet. */
 const stepsPast = (level, start) => (level >= start ? level - start : -1);
@@ -60,14 +65,15 @@ const stepsPast = (level, start) => (level >= start ? level - start : -1);
 export function intensity(level) {
   const pulse = stepsPast(level, STEP.pulse);
   const tick = stepsPast(level, STEP.tick);
-  const drain = stepsPast(level, STEP.drain);
   const blur = stepsPast(level, STEP.blur);
+  const shake = stepsPast(level, STEP.shake);
+  const shakeAmp = shake < 0 ? 0 : Math.min(SHAKE_MAX_PT, SHAKE_START_PT + SHAKE_STEP_PT * shake);
   return Object.freeze({
     pulseAlpha: pulse < 0 ? 0 : Math.min(0.42, 0.16 + 0.026 * pulse),
     pulsePeriodMs: pulse < 0 ? null : Math.max(1200, 3000 - 180 * pulse),
-    dim: drain < 0 ? 0 : Math.min(0.38, 0.14 + 0.03 * drain),
     blur: blur < 0 ? 0 : Math.min(1, 0.85 + 0.05 * blur),
-    shake: blur >= 0,
+    shakeAmp,
+    shake: shakeAmp > 0,
     tickIntervalMs: tick < 0 ? null : Math.max(280, Math.round(1000 * 0.85 ** tick)),
   });
 }

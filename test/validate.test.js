@@ -5,7 +5,26 @@ import { parseStart, parseLocation, parsePhone, parseDemo, parseConfess } from '
 describe('parseStart', () => {
   test('accepts a normal session and trims the course name', () => {
     const r = parseStart({ studyMinutes: 25, dollarsPerMinute: 2.5, courseName: '  BUAD 112 ' });
-    assert.deepEqual(r, { ok: true, value: { studyMinutes: 25, dollarsPerMinute: 2.5, courseName: 'BUAD 112' } });
+    assert.deepEqual(r, {
+      ok: true,
+      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112' },
+    });
+  });
+
+  test('turns yearly college tuition into what one minute of class costs', () => {
+    const r = parseStart({ studyMinutes: 25, tuitionPerYear: 70_000 });
+    assert.equal(r.ok, true);
+    assert.equal(r.value.tuitionPerYear, 70_000);
+    // 15 class hours a week x 15-week semesters x 2 semesters = 27,000 class minutes
+    assert.equal(r.value.dollarsPerMinute, 70_000 / 27_000);
+  });
+
+  test('rejects tuition that is not a real yearly amount', () => {
+    for (const bad of [0, -5, 'lots', 600_000]) {
+      const r = parseStart({ studyMinutes: 25, tuitionPerYear: bad });
+      assert.equal(r.ok, false, String(bad));
+      assert.match(r.error, /tuition/i);
+    }
   });
 
   test('fills defaults for missing optional fields', () => {
