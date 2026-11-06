@@ -61,13 +61,19 @@ export function sanitizeSession(raw, now) {
   const optional = (key) => (Number.isFinite(raw[key]) && raw[key] >= 0 ? raw[key] : 0);
   const awayMs = optional('awayMs');
   const offMs = optional('offMs');
+  // Saves from the gradual-cooldown version can hold a punishment clock ahead of the visible timer.
+  const fromOldVersion = !('offMs' in raw);
+  const pressureMs = fromOldVersion ? Math.min(raw.pressureMs, raw.stintMs) : raw.pressureMs;
+  const inPickup = typeof raw.inPickup === 'boolean' ? raw.inPickup : pressureMs > 0 || raw.stintMs > 0;
   const location = isObject(raw.location) ? raw.location : {};
 
   return {
     ...createIdle(1),
     ...counters,
+    pressureMs,
     awayMs,
     offMs,
+    inPickup,
     status: raw.status,
     config,
     startedAt: finiteOrNull(raw.startedAt),

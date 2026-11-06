@@ -68,6 +68,7 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     endedEarly: false,
     awayMs: 0,
     offMs: 0,
+    inPickup: false,
   };
 }
 
@@ -92,9 +93,16 @@ export function startSession(state, config, now) {
   };
 }
 
-function advanceSnitch(snitch, onPhone, level, now) {
+/**
+ * The snitch countdown runs only while the phone counts. Off the phone (inside the grace period) it
+ * pauses rather than restarting, so dodging off and on can't stall it; it is cancelled only when the
+ * pickup ends (grace ran out) or you walk away.
+ */
+function advanceSnitch(snitch, { counts, level, now, realDt, pickupEnded }) {
   if (snitch.sentAt !== null) return snitch;
-  if (!onPhone || level < SNITCH_LEVEL) return snitch.startedAt === null ? snitch : NO_SNITCH;
+  if (pickupEnded) return NO_SNITCH;
+  if (!counts) return snitch.startedAt === null ? snitch : { ...snitch, startedAt: snitch.startedAt + realDt };
+  if (level < SNITCH_LEVEL) return snitch;
   if (snitch.startedAt === null) return { startedAt: now, sentAt: null };
   if (now - snitch.startedAt >= SNITCH_COUNTDOWN_MS) return { ...snitch, sentAt: now };
   return snitch;
@@ -118,7 +126,8 @@ function finish(state, now, endedEarly) {
  */
 export function tick(state, now) {
   if (state.status !== 'running') return state;
-  const dt = Math.min(MAX_TICK_GAP_MS, Math.max(0, now - state.lastTickAt)) * state.demoSpeed;
+  const realDt = Math.min(MAX_TICK_GAP_MS, Math.max(0, now - state.lastTickAt));
+  const dt = realDt * state.demoSpeed;
   const away = isAway(state.location);
   // Away from the anchor the phone is just a phone, and the study timer waits for you to come back.
   const counts = state.onPhone && !away;
@@ -140,8 +149,9 @@ export function tick(state, now) {
     stintMs: counts ? state.stintMs + dt : graceOver ? 0 : state.stintMs,
     pressureMs,
     offMs,
+    inPickup: graceOver ? false : (state.inPickup ?? false),
     maxLevel: counts ? Math.max(state.maxLevel, newLevel) : state.maxLevel,
-    snitch: advanceSnitch(state.snitch, counts, newLevel, now),
+    snitch: advanceSnitch(state.snitch, { counts, level: newLevel, now, realDt, pickupEnded: graceOver }),
   };
   return next.studyElapsedMs >= next.studyTargetMs ? finish(next, now, false) : next;
 }
@@ -156,13 +166,15 @@ export function setPhone(state, onPhone, now) {
   const current = tick(state, now);
   if (current.status !== 'running' || current.onPhone === onPhone) return current;
   if (onPhone) {
+    // Away, the phone is free: nothing starts, and the grace window keeps running.
+    if (isAway(current.location)) return { ...current, onPhone: true };
     // Back within the grace period: same pickup, same timer, same step.
-    const fresh = current.pressureMs === 0 && current.stintMs === 0;
-    const counted = fresh && !isAway(current.location) ? 1 : 0;
-    return { ...current, onPhone: true, offMs: 0, pickups: current.pickups + counted };
+    const fresh = !current.inPickup;
+    return { ...current, onPhone: true, offMs: 0, inPickup: true, pickups: current.pickups + (fresh ? 1 : 0) };
   }
-  const bubbleGone = current.snitch.sentAt === null || now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
-  return { ...current, onPhone: false, offMs: 0, snitch: bubbleGone ? NO_SNITCH : current.snitch };
+  // A sent bubble that has finished showing re-arms the snitch; a running countdown just pauses.
+  const bubbleDone = current.snitch.sentAt !== null && now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
+  return { ...current, onPhone: false, snitch: bubbleDone ? NO_SNITCH : current.snitch };
 }
 
 /**
@@ -197,8 +209,8 @@ function settleAway(before, after) {
   const nowAway = isAway(after.location);
   if (wasAway && !nowAway && after.onPhone) {
     // Away long enough for the grace period to run out means this is a new pickup starting at step 1.
-    const fresh = after.pressureMs === 0 && after.stintMs === 0;
-    return fresh ? { ...after, offMs: 0, pickups: after.pickups + 1 } : { ...after, offMs: 0 };
+    const fresh = !after.inPickup;
+    return { ...after, offMs: 0, inPickup: true, pickups: after.pickups + (fresh ? 1 : 0) };
   }
   if (!wasAway && nowAway && after.snitch.sentAt === null) return { ...after, snitch: NO_SNITCH };
   return after;
