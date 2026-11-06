@@ -21,11 +21,10 @@ export const SNITCH_SENT_VISIBLE_MS = 8_000;
 /** The sentence you have to type at the top step. */
 export const CONFESSION_PHRASE = 'I am choosing my phone over my grade';
 
-/** The deposit placed at the start of a session (play money in this MVP; nothing is charged). */
+/** The default deposit placed at the start of a session (play money in this MVP; nothing is charged). */
 export const DEPOSIT_DOLLARS = 5;
 
-/** From the deposit step on, this much is taken every DEPOSIT_LOSS_EVERY_MS on the phone. */
-export const DEPOSIT_LOSS_DOLLARS = 1;
+/** From the deposit step on, a bite is taken every this much time on the phone (see src/deposit.js). */
 export const DEPOSIT_LOSS_EVERY_MS = 60_000;
 
 /** A tick gap longer than this (laptop asleep, stalled loop) is treated as a pause, not session time. */
@@ -37,8 +36,9 @@ export const ANCHOR_MAX_AGE_MS = 30_000;
 /** GPS margin added to the radius before Stop unlocks: the worse accuracy, capped at this. */
 export const MAX_ACCURACY_MARGIN_M = 50;
 
-/** Presenter speeds: 1x is real time, 6x turns each 15 s step into 2.5 s. */
-export const DEMO_SPEEDS = Object.freeze([1, 6]);
+/** Presenter speed slider: 1x is real time, up to 10x faster, in half steps. */
+export const DEMO_SPEED_MIN = 1;
+export const DEMO_SPEED_MAX = 10;
 
 /**
  * Class minutes in a school year, used to turn yearly tuition into "what one minute of class costs":

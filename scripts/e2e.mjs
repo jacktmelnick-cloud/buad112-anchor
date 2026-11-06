@@ -56,6 +56,11 @@ async function desktopFlow(browser) {
   await page.waitForFunction(() => document.querySelector('#anchor-status').dataset.state === 'ready');
   check('cover shows a ready anchor', (await text(page, '#anchor-status-text')).startsWith('Ready right here'));
   check('start button places the $5 deposit', (await text(page, '#start-btn')).includes('Deposit $5'));
+  check('the $5 schedule is spelled out', (await text(page, '#deposit-hint')).includes('$1.00 at 3:00, $1.56 at 4:00, $2.44 at 5:00'), await text(page, '#deposit-hint'));
+  await page.click('.deposit-pick__opt:has(input[value="100"])');
+  check('picking $100 updates the button', (await text(page, '#start-btn')).includes('Deposit $100'));
+  check('picking $100 shows its 7-minute schedule', (await text(page, '#deposit-hint')).includes('$37.63 at 9:00'), await text(page, '#deposit-hint'));
+  await page.click('.deposit-pick__opt:has(input[value="5"])');
   await page.screenshot({ path: path.join(shots, '1-cover-desktop.png') });
 
   await page.fill('input[name=studyMinutes]', '0');
@@ -78,7 +83,9 @@ async function desktopFlow(browser) {
   await page.screenshot({ path: path.join(shots, '2-session-desktop.png') });
 
   await page.click('#presenter-toggle');
-  await page.click('.seg__btn[data-speed="6"]');
+  await page.locator('#speed-range').fill('6');
+  await page.waitForFunction(() => document.querySelector('#speed-stamp') && !document.querySelector('#speed-stamp').hidden);
+  check('speed slider sets 6x', (await text(page, '#speed-stamp')) === 'DEMO SPEED 6X' || /6x/i.test(await text(page, '#speed-stamp')), await text(page, '#speed-stamp'));
   await page.click('#phone-btn');
   await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'true');
   check('phone button flips to "I\'m off my phone"', (await text(page, '#phone-btn-text')) === "I'm off my phone");
@@ -92,12 +99,12 @@ async function desktopFlow(browser) {
 
   // Blur waves run on a real-time 5.5 s cycle, so watch them at 1x where the blur step lasts 15 s.
   await page.waitForFunction(() => document.querySelector('#rubric-list').children[3].dataset.state === 'current', null, { timeout: 30_000 });
-  await page.click('.seg__btn[data-speed="1"]');
+  await page.locator('#speed-range').fill('1');
   await page.waitForFunction(() => document.body.dataset.fxBlur === 'on', null, { timeout: 8000 });
   check('step 4 blurs without shaking yet', (await page.evaluate(() => document.body.dataset.fxShake)) === 'off');
   await page.waitForFunction(() => document.body.dataset.fxBlur === 'off', null, { timeout: 8000 });
   check('the blur lifts between waves while still on the phone', (await page.locator('#phone-btn').getAttribute('aria-pressed')) === 'true');
-  await page.click('.seg__btn[data-speed="6"]');
+  await page.locator('#speed-range').fill('6');
   await page.waitForFunction(() => document.querySelector('#rubric-list').children[4].dataset.state === 'current', null, { timeout: 30_000 });
   await page.waitForFunction(() => document.body.dataset.fxShake === 'on', null, { timeout: 8000 });
   check('step 5 blurs and shakes together', (await page.evaluate(() => document.body.dataset.fxBlur)) === 'on');
@@ -151,7 +158,7 @@ async function desktopFlow(browser) {
   const grade = await text(page, '#grade');
   check('summary hands back a grade', /^[ABCDF][+-]?$/.test(grade), grade);
   check('summary says it ended early', (await text(page, '#summary-sub')).startsWith('Ended early'));
-  check('summary shows the deposit kept', /^\$\d of \$5$/.test(await text(page, '#sum-deposit')), await text(page, '#sum-deposit'));
+  check('summary shows the deposit kept', /^\$\d+(\.\d\d)? of \$5$/.test(await text(page, '#sum-deposit')), await text(page, '#sum-deposit'));
   await page.click('#presenter-toggle');
   await page.waitForTimeout(1300); // let the red circle finish drawing for the screenshot
   await page.screenshot({ path: path.join(shots, '6-summary-desktop.png') });

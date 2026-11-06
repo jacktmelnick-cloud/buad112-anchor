@@ -59,9 +59,15 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <input class="blank__input" name="tuitionPerYear" type="text" inputmode="numeric" autocomplete="off" placeholder="70,000" aria-describedby="tuition-hint" required>
           </label>
           <div class="blank blank--wide blank--deposit">
-            <span class="blank__label">Deposit</span>
-            <span class="blank__filled">$5.00</span>
-            <span class="blank__aside">Lose $1 a minute from 3:00 on your phone. Play money for the demo, nothing is charged.</span>
+            <span class="blank__label" id="deposit-label">Deposit</span>
+            <div class="deposit-pick" role="radiogroup" aria-labelledby="deposit-label">
+              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="5" checked><span>$5</span></label>
+              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="10"><span>$10</span></label>
+              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="25"><span>$25</span></label>
+              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="50"><span>$50</span></label>
+              <label class="deposit-pick__opt"><input type="radio" name="deposit" value="100"><span>$100</span></label>
+            </div>
+            <span class="blank__aside" id="deposit-hint">From 3:00 on your phone it drains, a bigger bite every minute. Play money for the demo, nothing is charged.</span>
           </div>
           <label class="blank blank--wide blank--toggle">
             <span class="blank__label">Library mode</span>
@@ -84,7 +90,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
             <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
             <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 15 seconds on it, this Mac gets worse: red, ticking, blur, the whole screen shaking, then talking, a siren. In library mode it stays silent and steps every 20 seconds.</li>
             <li>Getting off clears everything instantly, but nothing resets: the phone timer pauses, and the next time you pick up your phone it resumes at the same step.</li>
-            <li>You put down a $5 deposit. Hit 3:00 on your phone and it starts going: $1 then, and $1 every minute after until it's gone.</li>
+            <li>You put down a deposit, $5 to $100. Hit 3:00 on your phone and it starts draining, a bigger bite every minute until it's gone.</li>
             <li>Walk away from your anchor and your phone is just a phone: nothing goes off and the study timer pauses. Stop it there, or walk back and keep going.</li>
           </ol>
         </section>
@@ -92,7 +98,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
         <div class="cover__actions">
           <button class="btn btn--ink btn--big" type="submit" id="start-btn">
             <svg class="icon"><use href="#i-anchor"/></svg>
-            Deposit $5 and start
+            <span id="start-btn-text">Deposit $5 and start</span>
           </button>
           <p class="form-error" id="start-error" role="alert"></p>
         </div>
@@ -234,10 +240,10 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
       <p class="presenter__note">Demo only. These exist so the class can see it without waiting or walking.</p>
       <fieldset class="presenter__group">
         <legend>Speed</legend>
-        <div class="seg" role="group" aria-label="Demo speed">
-          <button class="seg__btn" type="button" data-speed="1" aria-pressed="true">1x</button>
-          <button class="seg__btn" type="button" data-speed="6" aria-pressed="false">6x faster</button>
-        </div>
+        <label class="range">
+          <input type="range" id="speed-range" min="1" max="10" step="0.5" value="1" aria-describedby="speed-value">
+          <output id="speed-value">1x, real time</output>
+        </label>
       </fieldset>
       <fieldset class="presenter__group">
         <legend>Walk away</legend>

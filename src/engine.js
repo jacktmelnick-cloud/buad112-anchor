@@ -9,13 +9,13 @@ import {
   SNITCH_SENT_VISIBLE_MS,
   CONFESSION_PHRASE,
   DEPOSIT_DOLLARS,
-  DEPOSIT_LOSS_DOLLARS,
   DEPOSIT_LOSS_EVERY_MS,
   MAX_TICK_GAP_MS,
   ANCHOR_MAX_AGE_MS,
   MAX_ACCURACY_MARGIN_M,
 } from './config.js';
 import { ladderFor } from './ladder.js';
+import { depositSchedule, depositLostAfter } from './deposit.js';
 import { distanceMeters } from './geo.js';
 import { normalizePhrase } from './phrase.js';
 
@@ -89,6 +89,7 @@ export function startSession(state, config, now) {
     startedAt: now,
     lastTickAt: now,
     studyTargetMs: config.studyMinutes * 60_000,
+    deposit: config.deposit ?? DEPOSIT_DOLLARS,
     location: { anchor, current, simulatedM: null },
   };
 }
@@ -165,13 +166,11 @@ export function setPhone(state, onPhone, now) {
     if (isAway(current.location)) return { ...current, onPhone: true };
     return { ...current, onPhone: true, pickups: current.pickups + 1, pickupCounted: true };
   }
-  // A sent bubble that has finished showing re-arms the snitch; a running countdown just pauses.
-  const bubbleDone = current.snitch.sentAt !== null && now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
+  // The snitch sends once per session: a running countdown just pauses, a sent one stays sent.
   return {
     ...current,
     onPhone: false,
     pickupCounted: false,
-    snitch: bubbleDone ? NO_SNITCH : current.snitch,
     // The confession pops up once; getting off the phone while it's up ends it for the session too.
     confessionDone: current.confessionDone || confessionUp(current),
   };
@@ -261,14 +260,23 @@ function confessionUp(state) {
   return counting && !state.confessionDone && ladder.reached(ladder.levelFor(state.pressureMs), 'confess');
 }
 
-/** Dollars taken from the deposit: $1 at the deposit step, then $1 a minute, never more than the deposit. */
-function depositLost(state) {
+/** Bites taken so far: the first at the deposit step, then one a minute (src/deposit.js has the amounts). */
+function depositBites(state) {
   const ladder = ladderOf(state);
-  const total = state.deposit ?? DEPOSIT_DOLLARS;
   const startMs = ladder.stepAt('deposit') * ladder.levelMs;
   if (state.stintMs < startMs) return 0;
-  const losses = 1 + Math.floor((state.stintMs - startMs) / DEPOSIT_LOSS_EVERY_MS);
-  return Math.min(total, losses * DEPOSIT_LOSS_DOLLARS);
+  return 1 + Math.floor((state.stintMs - startMs) / DEPOSIT_LOSS_EVERY_MS);
+}
+
+/** Dollars taken from the deposit so far, on its exponential schedule. */
+const depositLost = (state) => depositLostAfter(state.deposit ?? DEPOSIT_DOLLARS, depositBites(state));
+
+function depositView(state) {
+  const total = state.deposit ?? DEPOSIT_DOLLARS;
+  const lost = depositLost(state);
+  const schedule = depositSchedule(total);
+  const bites = depositBites(state);
+  return { total, left: cents(total - lost), lost, nextBite: bites < schedule.length ? schedule[bites] : null };
 }
 
 /**
@@ -311,7 +319,7 @@ function summarize(state) {
     maxLevelName: state.pickups > 0 ? ladderOf(state).steps[state.maxLevel].name : null,
     endedEarly: state.endedEarly,
     awayMs: state.awayMs ?? 0,
-    depositLeft: (state.deposit ?? DEPOSIT_DOLLARS) - depositLost(state),
+    depositLeft: depositView(state).left,
     depositLost: depositLost(state),
     quiet: ladderOf(state).quiet,
     courseName: state.config.courseName,
@@ -341,7 +349,6 @@ export function snapshot(state, now) {
   const paused = running && !phoneCounts && state.stintMs > 0;
   const rate = state.config?.dollarsPerMinute ?? 0;
   const atTop = level < ladder.maxLevel ? (level + 1) * ladder.levelMs - state.pressureMs : null;
-  const lost = depositLost(state);
   return {
     status: state.status,
     config: state.config,
@@ -377,11 +384,7 @@ export function snapshot(state, now) {
     },
     canStop: canStopAt(state),
     away,
-    deposit: {
-      total: state.deposit ?? DEPOSIT_DOLLARS,
-      left: (state.deposit ?? DEPOSIT_DOLLARS) - lost,
-      lost,
-    },
+    deposit: depositView(state),
     snitch: running && phoneCounts ? snitchView(state.snitch, now) : null,
     confession: {
       required: confessionUp(state),

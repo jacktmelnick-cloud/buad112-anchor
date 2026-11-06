@@ -529,7 +529,7 @@ final class ScreenOverlay {
 final class HUD {
     static let size = NSSize(width: 690, height: 84)
     /// Where the balance sits; the "-$1" floats up from here.
-    private static let balanceFrame = NSRect(x: 420, y: 26, width: 96, height: 44)
+    private static let balanceFrame = NSRect(x: 412, y: 28, width: 110, height: 40)
 
     let panel: NSPanel
     private let fader: Fader
@@ -538,7 +538,7 @@ final class HUD {
     private let caption = label("on your phone", font: Fonts.ui(11, .semibold), color: Palette.pencil)
     private let step = label("", font: Fonts.ui(15, .semibold), color: Palette.ink)
     private let detail = label("", font: Fonts.ui(12), color: Palette.pencil)
-    private let balance = label("$5", font: Fonts.pen(32), color: Palette.ink)
+    private let balance = label("$5", font: Fonts.pen(27), color: Palette.ink)
     private let balanceCaption = label("deposit left", font: Fonts.ui(11, .semibold), color: Palette.pencil)
     private var lastDeposit: Double?
 
@@ -564,7 +564,7 @@ final class HUD {
 
         balance.frame = Self.balanceFrame
         balance.alignment = .center
-        balanceCaption.frame = NSRect(x: 420, y: 10, width: 96, height: 16)
+        balanceCaption.frame = NSRect(x: 412, y: 10, width: 110, height: 16)
         balanceCaption.alignment = .center
 
         let off = inkButton("I'm off my phone", filled: true, target: target, action: offAction)

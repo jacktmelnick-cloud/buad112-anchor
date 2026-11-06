@@ -7,7 +7,7 @@ describe('parseStart', () => {
     const r = parseStart({ studyMinutes: 25, dollarsPerMinute: 2.5, courseName: '  BUAD 112 ' });
     assert.deepEqual(r, {
       ok: true,
-      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false },
+      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false, deposit: 5 },
     });
   });
 
@@ -91,7 +91,9 @@ describe('parseDemo', () => {
   });
 
   test('rejects unknown speeds and distances out of range', () => {
-    assert.equal(parseDemo({ speed: 3 }).ok, false);
+    assert.equal(parseDemo({ speed: 3.5 }).ok, true, 'anywhere from 1x to 10x');
+    assert.equal(parseDemo({ speed: 0.5 }).ok, false);
+    assert.equal(parseDemo({ speed: 11 }).ok, false);
     assert.equal(parseDemo({ simulatedM: -1 }).ok, false);
     assert.equal(parseDemo({ simulatedM: 501 }).ok, false);
     assert.equal(parseDemo({}).ok, false);

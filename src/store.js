@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createIdle } from './engine.js';
 import { parseStart, parseLocation } from './validate.js';
 import { SNITCH_COUNTDOWN_MS, DEPOSIT_DOLLARS } from './config.js';
+import { DEPOSIT_OPTIONS } from './deposit.js';
 
 const SAVE_EVERY_MS = 1000;
 const STATUSES = new Set(['idle', 'running', 'done']);
@@ -78,7 +79,7 @@ export function sanitizeSession(raw, now) {
     snitch: loadSnitch(raw.snitch),
     pickupCounted: raw.pickupCounted === true,
     confessionDone: raw.confessionDone === true,
-    deposit: Number.isFinite(raw.deposit) && raw.deposit >= 0 && raw.deposit <= 100 ? raw.deposit : DEPOSIT_DOLLARS,
+    deposit: DEPOSIT_OPTIONS.includes(raw.deposit) ? raw.deposit : DEPOSIT_DOLLARS,
   };
 }
 

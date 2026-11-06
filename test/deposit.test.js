@@ -29,7 +29,7 @@ const onPhoneFor = (ms) => advance(setPhone(running(), true, T0), T0, ms);
 describe('the deposit', () => {
   test('is $5, placed when the session starts', () => {
     assert.equal(DEPOSIT_DOLLARS, 5);
-    assert.deepEqual(snapshot(running(), T0).deposit, { total: 5, left: 5, lost: 0 });
+    assert.deepEqual(snapshot(running(), T0).deposit, { total: 5, left: 5, lost: 0, nextBite: 1 });
   });
 
   test('is the final step on the ladder, at 3:00 on the phone', () => {
@@ -42,39 +42,37 @@ describe('the deposit', () => {
     assert.equal(snapshot(onPhoneFor(179_000), T0 + 179_000).deposit.left, 5);
   });
 
-  test('loses $1 at 3:00, then $1 every minute after, until it is empty', () => {
+  test('$5 goes $1.00 at 3:00, $1.56 at 4:00, the last $2.44 at 5:00', () => {
     const at = (ms) => snapshot(onPhoneFor(ms), T0 + ms).deposit.left;
     assert.equal(at(180_000), 4);
     assert.equal(at(239_000), 4);
-    assert.equal(at(240_000), 3);
-    assert.equal(at(300_000), 2);
-    assert.equal(at(360_000), 1);
-    assert.equal(at(420_000), 0);
+    assert.equal(at(240_000), 2.44);
+    assert.equal(at(300_000), 0);
     assert.equal(at(600_000), 0, 'never below zero');
   });
 
   test('a lost dollar stays lost: off the phone and away the balance holds', () => {
-    let s = onPhoneFor(250_000); // $3 left
+    let s = onPhoneFor(250_000); // $2.44 left
     let t = T0 + 250_000;
     s = setPhone(s, false, t);
     s = advance(s, t, 10 * 60_000, 5000);
     t += 10 * 60_000;
-    assert.equal(snapshot(s, t).deposit.left, 3);
+    assert.equal(snapshot(s, t).deposit.left, 2.44);
     s = setPhone(setSimulatedDistance(s, 80), true, t);
     s = advance(s, t, 5 * 60_000, 5000);
     t += 5 * 60_000;
-    assert.equal(snapshot(s, t).deposit.left, 3, 'away the phone is free, nothing is taken');
+    assert.equal(snapshot(s, t).deposit.left, 2.44, 'away the phone is free, nothing is taken');
     s = setSimulatedDistance(s, 0);
     s = advance(s, t, 50_000);
-    assert.equal(snapshot(s, t + 50_000).deposit.left, 2, 'back on at the anchor, the next dollar goes at 5:00 on the timer');
+    assert.equal(snapshot(s, t + 50_000).deposit.left, 0, 'back on at the anchor, the last bite goes at 5:00 on the timer');
   });
 
   test('shows up in the summary', () => {
     let s = onPhoneFor(245_000);
     s = stopSession(setSimulatedDistance(setPhone(s, false, T0 + 245_000), 80), T0 + 245_000);
     const summary = snapshot(s, T0 + 245_000).summary;
-    assert.equal(summary.depositLeft, 3);
-    assert.equal(summary.depositLost, 2);
+    assert.equal(summary.depositLeft, 2.44);
+    assert.equal(summary.depositLost, 2.56);
   });
 
   test('is in the overlay frame so the floating bar can show the balance', () => {

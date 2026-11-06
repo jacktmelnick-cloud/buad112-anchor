@@ -35,10 +35,23 @@ The first start compiles the screen overlay (a few seconds).
 | 2:15 | Snitch | "Texting your study group in 10…" then a fake sent message. Nothing is sent |
 | 2:30 | Siren | Siren loop, volume forced to at least 70 |
 | 2:45 | Confession | A popup you make leave by typing "I am choosing my phone over my grade". Pops up once per session |
-| 3:00 | Deposit | -$1 of your $5 deposit, then -$1 every minute until it's gone (empty at 7:00). The floating bar shows the balance and a red -$1 each time |
+| 3:00 | Deposit | Your deposit drains, a bigger bite every minute until it's gone. The floating bar shows the balance and a red -$X each time |
 
-**Deposit:** starting a session puts down $5 (play money in this MVP; nothing is charged, no card). It
-follows the phone timer, which never resets during a session, so a lost dollar stays lost.
+**Deposit:** pick $5, $10, $25, $50, or $100 before starting (play money in this MVP; nothing is
+charged, no card). From 3:00 on the phone it drains exponentially: each minute takes about 1.56x the
+minute before, and bigger deposits burn for more minutes. It follows the phone timer, which never resets
+during a session, so lost money stays lost.
+
+| Deposit | 3:00 | 4:00 | 5:00 | 6:00 | 7:00 | 8:00 | 9:00 |
+|---|---|---|---|---|---|---|---|
+| $5 | 1.00 | 1.56 | 2.44 | | | | |
+| $10 | 1.14 | 1.77 | 2.77 | 4.32 | | | |
+| $25 | 1.69 | 2.65 | 4.13 | 6.45 | 10.08 | | |
+| $50 | 2.08 | 3.25 | 5.07 | 7.92 | 12.37 | 19.31 | |
+| $100 | 2.59 | 4.05 | 6.33 | 9.88 | 15.43 | 24.09 | 37.63 |
+
+The math: ratio r = (√17 − 1) / 2 ≈ 1.5616 (it splits $5 into exactly $1, $1.56, $2.44). For a deposit
+D over n minutes the first bite is D(r − 1) / (rⁿ − 1), so the bites add up to exactly D.
 
 **Library mode** (a checkbox on the setup screen): no sound at all. No ticking, voice, or siren,
 notifications stay silent, and your volume is never touched. The three sound steps are cut, so the
@@ -67,11 +80,11 @@ Closing the tab doesn't end the session; the server keeps it, and reopening the 
 
 Open **Presenter** (bottom left):
 
-- **6x speed**: each step takes 2.5 seconds instead of 15, so the whole rubric plays in about 30 seconds.
+- **Speed slider**: anywhere from 1x (real time) to 10x. At 6x each 15 s step takes 2.5 s.
 - **Walk away slider**: pretend you're N meters from the anchor. Past 50 m, Stop unlocks.
 
 Suggested 2-minute demo: start a 5-minute session at 1x and hit "I'm on my phone". At real speed it goes
-red at 0:15, ticks at 0:30, blurs at 0:45, and shakes the whole screen at 1:00. Switch to 6x to rush the rest
+red at 0:15, ticks at 0:30, blurs at 0:45, and shakes the whole screen at 1:00. Drag the speed to 6x to rush the rest
 up to the siren, click "I'm off my phone" on the floating bar, then slide "Walk away" to 70 m and press Stop
 to show the graded cover.
 

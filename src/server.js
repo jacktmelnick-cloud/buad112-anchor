@@ -9,6 +9,7 @@ import path from 'node:path';
 import { parseStart, parseLocation, parsePhone, parseDemo, parseConfess } from './validate.js';
 import { createLogger } from './log.js';
 import { LADDER, NORMAL_LADDER, QUIET_LADDER } from './ladder.js';
+import { DEPOSIT_OPTIONS, depositSchedule } from './deposit.js';
 import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS, DEPOSIT_DOLLARS } from './config.js';
 
 const RULES = Object.freeze({
@@ -19,6 +20,8 @@ const RULES = Object.freeze({
   classMinutesPerYear: CLASS_MINUTES_PER_YEAR,
   maxTuitionPerYear: LIMITS.maxTuitionPerYear,
   depositDollars: DEPOSIT_DOLLARS,
+  depositOptions: DEPOSIT_OPTIONS,
+  depositSchedules: Object.fromEntries(DEPOSIT_OPTIONS.map((d) => [d, depositSchedule(d)])),
   ladders: {
     normal: { steps: NORMAL_LADDER.steps, levelMs: NORMAL_LADDER.levelMs },
     quiet: { steps: QUIET_LADDER.steps, levelMs: QUIET_LADDER.levelMs },

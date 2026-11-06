@@ -987,6 +987,54 @@ figure {
   cursor: pointer;
 }
 
+.deposit-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deposit-pick__opt {
+  position: relative;
+  cursor: pointer;
+}
+
+.deposit-pick__opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.deposit-pick__opt span {
+  display: inline-block;
+  min-width: 3.4em;
+  padding: 4px 12px 2px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font: 700 1.35rem / 1.2 var(--font-hand);
+  text-align: center;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.deposit-pick__opt:hover span {
+  background: rgb(252 251 247 / 0.4);
+}
+
+.deposit-pick__opt input:checked + span {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.deposit-pick__opt input:focus-visible + span {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.blank--deposit {
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 8px;
+}
+
 .blank__aside {
   color: var(--ink-soft);
   font-size: var(--text-sm);

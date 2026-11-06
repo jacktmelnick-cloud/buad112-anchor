@@ -27,6 +27,7 @@ let snap = null;
 let rubricMode = null;
 let lastDepositLeft = null;
 let draggingRange = false;
+let draggingSpeed = false;
 const geo = { state: 'pending', fix: null, lastSentAt: 0 };
 
 /* ---------- helpers ---------- */
@@ -295,10 +296,13 @@ function renderSummary(summary) {
   setText('remark', REMARKS[summary.grade[0]] ?? '');
 }
 
+const speedLabel = (speed) => (speed === 1 ? '1x, real time' : `${speed}x faster`);
+
 function renderPresenter(s) {
-  document.querySelectorAll('.seg__btn').forEach((b) => {
-    b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === s.demoSpeed));
-  });
+  if (!draggingSpeed) {
+    $('speed-range').value = String(s.demoSpeed);
+    setText('speed-value', speedLabel(s.demoSpeed));
+  }
   if (draggingRange) return;
   const { location } = s;
   if (location.simulated) {
@@ -378,6 +382,17 @@ function parseTuition(raw) {
   return amount >= 1 && amount <= rules.maxTuitionPerYear ? Math.round(amount) : null;
 }
 
+/** Spell out the chosen deposit's schedule and put the amount on the start button. */
+function renderDepositHint() {
+  if (!rules) return;
+  const amount = Number(document.querySelector('input[name=deposit]:checked')?.value ?? rules.depositDollars);
+  const bites = rules.depositSchedules[amount] ?? [];
+  const whole = (n) => money(n).replace('.00', '');
+  const steps = bites.map((bite, i) => `${money(bite)} at ${3 + i}:00`).join(', ');
+  setText('deposit-hint', `From 3:00 on your phone: ${steps}, then it's gone. Play money for the demo, nothing is charged.`);
+  setText('start-btn-text', `Deposit ${whole(amount)} and start`);
+}
+
 function renderTuitionHint() {
   if (!rules) return;
   const tuition = parseTuition(document.querySelector('input[name=tuitionPerYear]').value);
@@ -401,7 +416,8 @@ function readStartForm(form) {
     return { error: "Enter your college's yearly tuition, like 70,000." };
   }
   const quiet = data.get('quiet') === 'on';
-  return { value: { studyMinutes, tuitionPerYear, quiet, courseName: String(data.get('courseName') ?? '').trim() } };
+  const deposit = Number(data.get('deposit') ?? 5);
+  return { value: { studyMinutes, tuitionPerYear, quiet, deposit, courseName: String(data.get('courseName') ?? '').trim() } };
 }
 
 function wireEvents() {
@@ -445,9 +461,17 @@ function wireEvents() {
     show('presenter-body', open);
   });
 
-  document.querySelectorAll('.seg__btn').forEach((b) => {
-    b.addEventListener('click', () => act(null, 'session-error', '/api/demo', { speed: Number(b.dataset.speed) }));
+  const speed = $('speed-range');
+  speed.addEventListener('input', () => {
+    draggingSpeed = true;
+    setText('speed-value', speedLabel(Number(speed.value)));
   });
+  speed.addEventListener('change', async () => {
+    await act(null, 'session-error', '/api/demo', { speed: Number(speed.value) });
+    draggingSpeed = false;
+  });
+
+  document.querySelectorAll('input[name=deposit]').forEach((radio) => radio.addEventListener('change', renderDepositHint));
 
   const range = $('sim-range');
   range.addEventListener('input', () => {
@@ -495,6 +519,7 @@ async function init() {
   }
   buildRubric('normal');
   buildFeed();
+  renderDepositHint();
   wireEvents();
   renderAnchorStatus();
   startLocation();

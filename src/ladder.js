@@ -18,7 +18,7 @@ const ALL_STEPS = Object.freeze(
     { id: 'snitch', name: 'Snitch', note: 'Texting your study group', sound: false },
     { id: 'siren', name: 'Siren', note: 'Siren, volume forced up', sound: true },
     { id: 'confess', name: 'Confession', note: 'Type it to make the popup leave (once)', sound: false },
-    { id: 'deposit', name: 'Deposit', note: '-$1 now and every minute until your $5 is gone', sound: false },
+    { id: 'deposit', name: 'Deposit', note: 'Your deposit drains, a bigger bite every minute', sound: false },
   ].map((step) => Object.freeze(step)),
 );
 

@@ -70,17 +70,17 @@ describe('demo speed', () => {
 });
 
 describe('snitch', () => {
-  test('can fire again on a later pickup once the sent bubble is gone', () => {
+  test('sends only once per session, even after later pickups', () => {
     const reach = levelIndexOf('snitch') * LEVEL_MS / 6 + 500;
     let s = setPhone(setDemoSpeed(startSession(createIdle(), CONFIG, T0), 6), true, T0);
     s = advance(s, T0, reach + SNITCH_COUNTDOWN_MS + 500);
     assert.notEqual(s.snitch.sentAt, null);
     let t = T0 + reach + SNITCH_COUNTDOWN_MS + 500 + SNITCH_SENT_VISIBLE_MS + 100;
     s = setPhone(tick(s, t), false, t);
-    assert.equal(s.snitch.sentAt, null);
+    assert.notEqual(s.snitch.sentAt, null, 'stays sent');
     s = setPhone(s, true, t + 10);
-    s = advance(s, t + 10, 1000);
-    assert.equal(snapshot(s, t + 1010).snitch?.phase, 'countdown');
+    s = advance(s, t + 10, 60_000);
+    assert.equal(snapshot(s, t + 60_010).snitch, null, 'no second countdown, no second text');
   });
 });
 

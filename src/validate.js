@@ -2,7 +2,8 @@
  * Input validation for everything that crosses the HTTP boundary.
  * Each parser returns `{ ok: true, value }` or `{ ok: false, error }` with a message fit to show a person.
  */
-import { DEFAULTS, LIMITS, DEMO_SPEEDS, CLASS_MINUTES_PER_YEAR } from './config.js';
+import { DEFAULTS, LIMITS, DEMO_SPEED_MIN, DEMO_SPEED_MAX, CLASS_MINUTES_PER_YEAR, DEPOSIT_DOLLARS } from './config.js';
+import { DEPOSIT_OPTIONS } from './deposit.js';
 
 const ok = (value) => ({ ok: true, value });
 const fail = (error) => ({ ok: false, error });
@@ -39,7 +40,16 @@ export function parseStart(body) {
   const name = cleaned || DEFAULTS.courseName;
   const quiet = body.quiet ?? false;
   if (typeof quiet !== 'boolean') return fail('Library mode must be on or off.');
-  return ok({ studyMinutes, dollarsPerMinute, tuitionPerYear: hasTuition ? tuitionPerYear : null, courseName: name, quiet });
+  const deposit = body.deposit ?? DEPOSIT_DOLLARS;
+  if (!DEPOSIT_OPTIONS.includes(deposit)) return fail(`Deposit must be one of $${DEPOSIT_OPTIONS.join(', $')}.`);
+  return ok({
+    studyMinutes,
+    dollarsPerMinute,
+    tuitionPerYear: hasTuition ? tuitionPerYear : null,
+    courseName: name,
+    quiet,
+    deposit,
+  });
 }
 
 /** @param {unknown} body */
@@ -63,7 +73,9 @@ export function parseDemo(body) {
   const hasSpeed = 'speed' in body;
   const hasDistance = 'simulatedM' in body;
   if (!hasSpeed && !hasDistance) return fail('Send a demo speed, a simulated distance, or both.');
-  if (hasSpeed && !DEMO_SPEEDS.includes(body.speed)) return fail(`Demo speed must be one of ${DEMO_SPEEDS.join(', ')}.`);
+  if (hasSpeed && !inRange(body.speed, DEMO_SPEED_MIN, DEMO_SPEED_MAX)) {
+    return fail(`Demo speed must be from ${DEMO_SPEED_MIN}x to ${DEMO_SPEED_MAX}x.`);
+  }
   if (hasDistance && body.simulatedM !== null && !inRange(body.simulatedM, 0, LIMITS.maxSimulatedM)) {
     return fail(`Simulated distance must be from 0 to ${LIMITS.maxSimulatedM} meters.`);
   }

@@ -26,7 +26,7 @@ Other study timers and focus apps can be switched off from the same device that 
 - One clock for the phone timer and the punishment (step = timer / 15 s). It never resets during a session: off the phone or away it pauses, and it resumes where it left off. Only a new session starts from zero.
 - Away from the anchor (past the Stop unlock distance) the phone is free: no effects, no penalty, no cost, and the study timer pauses. Stop is available there, or the user walks back and continues.
 - Library mode (chosen before starting): no sound at all (no ticking, voice, siren, notification sound, or volume changes); the three sound steps are cut and steps last 20 s, so the deposit still starts at 3:00.
-- A $5 deposit is placed when a session starts (play money in the MVP; nothing is charged). The final step, at 3:00 on the phone, takes $1 and then $1 every minute until it is empty. The confession popup appears at most once per session.
+- A deposit ($5, $10, $25, $50, or $100) is placed when a session starts (play money in the MVP; nothing is charged). The final step, at 3:00 on the phone, drains it exponentially (each minute about 1.56x the last; bigger deposits burn longer) until it is empty. The confession popup and the snitch text each happen at most once per session.
 - The cost counter comes from the college's yearly tuition the user enters, divided by 450 class hours a year (27,000 minutes).
 - Session state lives on the local server, so closing the tab does not end it.
 - Confirmed by the team: no full-screen lockout that blocks the Mac; the snitch text is faked on screen and nothing is sent.
