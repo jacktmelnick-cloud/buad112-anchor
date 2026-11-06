@@ -92,13 +92,15 @@ describe('phone escalation', () => {
     assert.equal(snap.phone.level, snap.phone.maxLevel);
   });
 
-  test('decays one level per step-length off the phone instead of resetting', () => {
+  test('resets fully to step 1 after a whole grace period off the phone', () => {
     const onFor = 3 * LEVEL_MS + 5000; // level 3
     let s = setPhone(running(), true, T0);
     s = advance(s, T0, onFor);
     s = setPhone(s, false, T0 + onFor);
-    s = advance(s, T0 + onFor, LEVEL_MS);
-    assert.equal(snapshot(s, T0 + onFor + LEVEL_MS).phone.restingLevel, 2);
+    s = advance(s, T0 + onFor, LEVEL_MS + 250);
+    const snap = snapshot(s, T0 + onFor + LEVEL_MS + 250);
+    assert.equal(snap.phone.level, 0);
+    assert.equal(snap.phone.stintMs, 0);
   });
 
   test('a quick off-and-on toggle does not reset the level', () => {
@@ -108,16 +110,16 @@ describe('phone escalation', () => {
     s = setPhone(s, false, T0 + onFor);
     s = advance(s, T0 + onFor, 2000);
     s = setPhone(s, true, T0 + onFor + 2000);
-    assert.equal(snapshot(s, T0 + onFor + 2000).phone.level, 1);
+    assert.equal(snapshot(s, T0 + onFor + 2000).phone.level, 2, 'a quick return keeps the step');
   });
 
-  test('counts pickups only when going onto the phone', () => {
+  test('counts pickups only when going onto the phone, and a quick return is the same pickup', () => {
     let s = running();
     s = setPhone(s, true, T0);
     s = setPhone(s, true, T0 + 10);
     s = setPhone(s, false, T0 + 20);
     s = setPhone(s, true, T0 + 30);
-    assert.equal(s.pickups, 2);
+    assert.equal(s.pickups, 1);
   });
 
   test('keeps the phone stint and total separate from the study timer', () => {
@@ -129,7 +131,7 @@ describe('phone escalation', () => {
     s = advance(s, T0 + 30_000, 5000);
     const snap = snapshot(s, T0 + 35_000);
     assert.equal(snap.phone.totalMs, 25_000);
-    assert.equal(snap.phone.stintMs, 5000);
+    assert.equal(snap.phone.stintMs, 25_000, 'back within the grace period, so the timer continued');
     assert.equal(snap.study.elapsedMs, 35_000);
   });
 
@@ -265,8 +267,9 @@ describe('summary', () => {
   });
 
   test('scales the score by how much of the session was completed when ended early', () => {
-    let s = setSimulatedDistance(running({ studyMinutes: 10 }), 70);
-    s = advance(s, T0, 300_000, 1000);
+    let s = setSimulatedDistance(running({ studyMinutes: 10 }), 10);
+    s = advance(s, T0, 300_000, 1000); // study 5 of 10 minutes at the anchor
+    s = setSimulatedDistance(s, 70); // then walk away and stop
     const summary = snapshot(stopSession(s, T0 + 300_000), T0 + 300_000).summary;
     assert.equal(summary.endedEarly, true);
     assert.equal(summary.focusScore, 50);

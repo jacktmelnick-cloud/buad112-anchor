@@ -13,6 +13,7 @@ import {
   MAX_TICK_GAP_MS,
   ANCHOR_MAX_AGE_MS,
   MAX_ACCURACY_MARGIN_M,
+  GRACE_MS,
 } from './config.js';
 import { LADDER, MAX_LEVEL, levelForPressure, levelIndexOf } from './ladder.js';
 import { distanceMeters } from './geo.js';
@@ -22,7 +23,7 @@ const PENALTY_LEVEL = levelIndexOf('penalty');
 const SNITCH_LEVEL = levelIndexOf('snitch');
 const CONFESS_LEVEL = levelIndexOf('confess');
 
-/** Pressure stops growing once you are at the top, so the way back down is bounded. */
+/** The punishment clock stops at the top step; the timer you see keeps counting. */
 const PRESSURE_CAP_MS = (MAX_LEVEL + 1) * LEVEL_MS - 1;
 
 const NO_SNITCH = Object.freeze({ startedAt: null, sentAt: null });
@@ -65,6 +66,8 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
     snitch: NO_SNITCH,
     confessedUntil: 0,
     endedEarly: false,
+    awayMs: 0,
+    offMs: 0,
   };
 }
 
@@ -116,23 +119,29 @@ function finish(state, now, endedEarly) {
 export function tick(state, now) {
   if (state.status !== 'running') return state;
   const dt = Math.min(MAX_TICK_GAP_MS, Math.max(0, now - state.lastTickAt)) * state.demoSpeed;
+  const away = isAway(state.location);
+  // Away from the anchor the phone is just a phone, and the study timer waits for you to come back.
+  const counts = state.onPhone && !away;
   const level = levelForPressure(state.pressureMs);
-  const added = state.onPhone && level >= PENALTY_LEVEL ? dt * PENALTY_RATE : 0;
-  const pressureMs = state.onPhone
-    ? Math.min(PRESSURE_CAP_MS, state.pressureMs + dt)
-    : Math.max(0, state.pressureMs - dt);
+  const added = counts && level >= PENALTY_LEVEL ? dt * PENALTY_RATE : 0;
+  // One clock: on the phone it grows; off (or away) it holds through the grace period, then resets.
+  const offMs = counts ? 0 : (state.offMs ?? 0) + dt;
+  const graceOver = !counts && offMs >= GRACE_MS;
+  const pressureMs = counts ? Math.min(PRESSURE_CAP_MS, state.pressureMs + dt) : graceOver ? 0 : state.pressureMs;
   const newLevel = levelForPressure(pressureMs);
   const next = {
     ...state,
     lastTickAt: now,
-    studyElapsedMs: state.studyElapsedMs + dt,
+    studyElapsedMs: away ? state.studyElapsedMs : state.studyElapsedMs + dt,
+    awayMs: away ? (state.awayMs ?? 0) + dt : (state.awayMs ?? 0),
     studyTargetMs: state.studyTargetMs + added,
     penaltyMs: state.penaltyMs + added,
-    phoneMs: state.onPhone ? state.phoneMs + dt : state.phoneMs,
-    stintMs: state.onPhone ? state.stintMs + dt : state.stintMs,
+    phoneMs: counts ? state.phoneMs + dt : state.phoneMs,
+    stintMs: counts ? state.stintMs + dt : graceOver ? 0 : state.stintMs,
     pressureMs,
-    maxLevel: state.onPhone ? Math.max(state.maxLevel, newLevel) : state.maxLevel,
-    snitch: advanceSnitch(state.snitch, state.onPhone, newLevel, now),
+    offMs,
+    maxLevel: counts ? Math.max(state.maxLevel, newLevel) : state.maxLevel,
+    snitch: advanceSnitch(state.snitch, counts, newLevel, now),
   };
   return next.studyElapsedMs >= next.studyTargetMs ? finish(next, now, false) : next;
 }
@@ -146,9 +155,14 @@ export function setPhone(state, onPhone, now) {
   if (state.status !== 'running') return state;
   const current = tick(state, now);
   if (current.status !== 'running' || current.onPhone === onPhone) return current;
-  if (onPhone) return { ...current, onPhone: true, stintMs: 0, pickups: current.pickups + 1 };
+  if (onPhone) {
+    // Back within the grace period: same pickup, same timer, same step.
+    const fresh = current.pressureMs === 0 && current.stintMs === 0;
+    const counted = fresh && !isAway(current.location) ? 1 : 0;
+    return { ...current, onPhone: true, offMs: 0, pickups: current.pickups + counted };
+  }
   const bubbleGone = current.snitch.sentAt === null || now - current.snitch.sentAt >= SNITCH_SENT_VISIBLE_MS;
-  return { ...current, onPhone: false, snitch: bubbleGone ? NO_SNITCH : current.snitch };
+  return { ...current, onPhone: false, offMs: 0, snitch: bubbleGone ? NO_SNITCH : current.snitch };
 }
 
 /**
@@ -161,7 +175,7 @@ export function updateLocation(state, fix, now) {
   const current = { lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy, at: now };
   const needsAnchor = state.status === 'running' && state.location.anchor === null;
   const anchor = needsAnchor ? { lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy } : state.location.anchor;
-  return { ...state, location: { ...state.location, current, anchor } };
+  return settleAway(state, { ...state, location: { ...state.location, current, anchor } });
 }
 
 /**
@@ -170,7 +184,24 @@ export function updateLocation(state, fix, now) {
  * @param {number | null} meters
  */
 export function setSimulatedDistance(state, meters) {
-  return { ...state, location: { ...state.location, simulatedM: meters } };
+  return settleAway(state, { ...state, location: { ...state.location, simulatedM: meters } });
+}
+
+/**
+ * Crossing the line: walking back in while still on the phone is a fresh pickup that starts escalating;
+ * walking out cancels a snitch countdown.
+ */
+function settleAway(before, after) {
+  if (after.status !== 'running') return after;
+  const wasAway = isAway(before.location);
+  const nowAway = isAway(after.location);
+  if (wasAway && !nowAway && after.onPhone) {
+    // Away long enough for the grace period to run out means this is a new pickup starting at step 1.
+    const fresh = after.pressureMs === 0 && after.stintMs === 0;
+    return fresh ? { ...after, offMs: 0, pickups: after.pickups + 1 } : { ...after, offMs: 0 };
+  }
+  if (!wasAway && nowAway && after.snitch.sentAt === null) return { ...after, snitch: NO_SNITCH };
+  return after;
 }
 
 /**
@@ -187,7 +218,7 @@ export function setDemoSpeed(state, speed) {
  * @param {number} now
  */
 export function confess(state, text, now) {
-  if (state.status !== 'running' || !state.onPhone) return state;
+  if (state.status !== 'running' || !state.onPhone || isAway(state.location)) return state;
   if (normalizePhrase(text) !== normalizePhrase(CONFESSION_PHRASE)) return state;
   return { ...state, confessedUntil: now + CONFESSION_GRACE_MS };
 }
@@ -205,10 +236,13 @@ function unlockDistance(location) {
   return RADIUS_M + Math.min(MAX_ACCURACY_MARGIN_M, accuracy);
 }
 
-const canStopAt = (state) => {
-  const distance = distanceFromAnchor(state.location);
-  return state.status === 'running' && distance !== null && distance > unlockDistance(state.location);
-};
+/** Clearly past the unlock distance. Unknown location counts as at the anchor. */
+function isAway(location) {
+  const distance = distanceFromAnchor(location);
+  return distance !== null && distance > unlockDistance(location);
+}
+
+const canStopAt = (state) => state.status === 'running' && isAway(state.location);
 
 /**
  * End early. Only allowed once you are outside the radius; otherwise the state comes back unchanged.
@@ -249,6 +283,7 @@ function summarize(state) {
     maxLevel: state.maxLevel,
     maxLevelName: state.pickups > 0 ? LADDER[state.maxLevel].name : null,
     endedEarly: state.endedEarly,
+    awayMs: state.awayMs ?? 0,
     courseName: state.config.courseName,
   };
 }
@@ -270,6 +305,9 @@ export function snapshot(state, now) {
   const distance = distanceFromAnchor(state.location);
   const unlockAtM = unlockDistance(state.location);
   const running = state.status === 'running';
+  const away = running && isAway(state.location);
+  const phoneCounts = state.onPhone && !away;
+  const inGrace = running && !phoneCounts && state.pressureMs > 0;
   const rate = state.config?.dollarsPerMinute ?? 0;
   const atTop = level < MAX_LEVEL ? (level + 1) * LEVEL_MS - state.pressureMs : null;
   return {
@@ -290,9 +328,10 @@ export function snapshot(state, now) {
       level,
       levelId: LADDER[level].id,
       levelName: LADDER[level].name,
-      restingLevel: state.onPhone ? null : level,
+      restingLevel: inGrace ? level : null,
+      graceLeftMs: inGrace ? Math.max(0, GRACE_MS - (state.offMs ?? 0)) / state.demoSpeed : null,
       maxLevel: MAX_LEVEL,
-      nextLevelInMs: state.onPhone && atTop !== null ? atTop / state.demoSpeed : null,
+      nextLevelInMs: phoneCounts && atTop !== null ? atTop / state.demoSpeed : null,
     },
     cost: cents((state.phoneMs / 60_000) * rate),
     location: {
@@ -305,9 +344,10 @@ export function snapshot(state, now) {
       unlockAtM,
     },
     canStop: canStopAt(state),
+    away,
     snitch: running ? snitchView(state.snitch, now) : null,
     confession: {
-      required: running && state.onPhone && level >= CONFESS_LEVEL && now >= state.confessedUntil,
+      required: running && phoneCounts && level >= CONFESS_LEVEL && now >= state.confessedUntil,
       phrase: CONFESSION_PHRASE,
     },
     summary: state.status === 'done' ? summarize(state) : null,

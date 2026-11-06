@@ -73,7 +73,8 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
           <ol class="instructions__list">
             <li>Your anchor drops where you press start. Within 50 m of it, Stop is locked.</li>
             <li>Picked up your phone? Press <em>I'm on my phone</em>. Every 15 seconds on it, this Mac gets worse: red, ticking, blur, the whole screen shaking, then talking, a siren.</li>
-            <li>Getting off clears everything instantly. The step you reached cools down one step per 15 seconds, so quick toggles don't reset it.</li>
+            <li>Getting off clears everything instantly. Stay off 15 seconds and the timer and punishment reset to step 1; get back on sooner and you pick up where you left off.</li>
+            <li>Walk away from your anchor and your phone is just a phone: nothing goes off and the study timer pauses. Stop it there, or walk back and keep going.</li>
           </ol>
         </section>
 
@@ -139,7 +140,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
 
         <aside class="rubric" aria-labelledby="rubric-title">
           <h2 class="rubric__title" id="rubric-title">Phone rubric</h2>
-          <p class="rubric__sub" id="rubric-sub">One step every 15 seconds on your phone.</p>
+          <p class="rubric__sub" id="rubric-sub">One step every 15 seconds on your phone. Off for 15 seconds and it all resets to step 1.</p>
           <ol class="rubric__list" id="rubric-list"></ol>
         </aside>
       </div>
@@ -190,6 +191,7 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
           <div class="filled__row"><dt>Penalty added</dt><dd class="is-pen" id="sum-penalty">0:00</dd></div>
           <div class="filled__row"><dt>Tuition burned</dt><dd class="is-pen" id="sum-cost">$0.00</dd></div>
           <div class="filled__row"><dt>Worst step</dt><dd class="is-pen" id="sum-worst">None</dd></div>
+          <div class="filled__row"><dt>Away from anchor</dt><dd id="sum-away">0:00</dd></div>
         </dl>
       </div>
 

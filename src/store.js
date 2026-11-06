@@ -57,11 +57,17 @@ export function sanitizeSession(raw, now) {
   const running = raw.status === 'running';
   const onPhone = running && raw.onPhone === true;
   const counters = Object.fromEntries(COUNTERS.map((key) => [key, raw[key]]));
+  // Added after the first release; older saves don't have it.
+  const optional = (key) => (Number.isFinite(raw[key]) && raw[key] >= 0 ? raw[key] : 0);
+  const awayMs = optional('awayMs');
+  const offMs = optional('offMs');
   const location = isObject(raw.location) ? raw.location : {};
 
   return {
     ...createIdle(1),
     ...counters,
+    awayMs,
+    offMs,
     status: raw.status,
     config,
     startedAt: finiteOrNull(raw.startedAt),

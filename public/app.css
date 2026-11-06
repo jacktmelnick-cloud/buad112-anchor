@@ -627,6 +627,15 @@ figure {
   display: block;
 }
 
+/* Away from the anchor the phone timer means nothing, so it goes away too. */
+.desk[data-away='true'] .stint {
+  display: none;
+}
+
+.desk[data-away='true'] .study__time {
+  color: var(--pencil);
+}
+
 .stint__time {
   min-width: 4ch;
   color: var(--pen);

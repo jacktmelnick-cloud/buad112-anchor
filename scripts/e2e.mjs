@@ -89,11 +89,14 @@ async function desktopFlow(browser) {
   check('in-tab red pulse runs when the overlay is off', (await page.evaluate(() => document.body.dataset.fxPulse)) === 'on');
   await page.screenshot({ path: path.join(shots, '3-on-phone-step3-desktop.png') });
 
+  // Blur waves run on a real-time 5.5 s cycle, so watch them at 1x where the blur step lasts 15 s.
   await page.waitForFunction(() => document.querySelector('#rubric-list').children[3].dataset.state === 'current', null, { timeout: 30_000 });
+  await page.click('.seg__btn[data-speed="1"]');
   await page.waitForFunction(() => document.body.dataset.fxBlur === 'on', null, { timeout: 8000 });
   check('step 4 blurs without shaking yet', (await page.evaluate(() => document.body.dataset.fxShake)) === 'off');
   await page.waitForFunction(() => document.body.dataset.fxBlur === 'off', null, { timeout: 8000 });
   check('the blur lifts between waves while still on the phone', (await page.locator('#phone-btn').getAttribute('aria-pressed')) === 'true');
+  await page.click('.seg__btn[data-speed="6"]');
   await page.waitForFunction(() => document.querySelector('#rubric-list').children[4].dataset.state === 'current', null, { timeout: 30_000 });
   await page.waitForFunction(() => document.body.dataset.fxShake === 'on', null, { timeout: 8000 });
   check('step 5 blurs and shakes together', (await page.evaluate(() => document.body.dataset.fxBlur)) === 'on');
@@ -118,10 +121,22 @@ async function desktopFlow(browser) {
   await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'false');
   check('getting off clears every in-tab effect', (await page.evaluate(() => document.body.dataset.fx)) === 'off');
   check('rubric remembers where the next pickup starts', (await page.locator('#rubric-list > li[data-state="resting"]').count()) === 1);
+  check('shows the 15-second grace countdown', (await text(page, '#phone-meta')).startsWith('Back on within'), await text(page, '#phone-meta'));
 
   await page.locator('#sim-range').fill('70');
   await page.waitForFunction(() => !document.querySelector('#stop-btn').disabled, null, { timeout: 5000 });
   check('walking 70 m unlocks Stop', (await text(page, '#lock-text')).startsWith('Stop unlocked'));
+
+  await page.click('#phone-btn');
+  await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'true');
+  await page.waitForTimeout(3000); // at 6x that is over a step: nothing may escalate while away
+  check('away from the anchor, the phone is free: no effects', (await page.evaluate(() => document.body.dataset.fx)) === 'off');
+  check('away from the anchor, the page says so', (await text(page, '#phone-meta')).includes('phone is free'));
+  check('away from the anchor, the study timer is paused', /^paused/i.test(await text(page, '#study-label')));
+  check('away from the anchor, the rubric does not climb', (await page.locator('#rubric-list > li[data-state="current"]').count()) === 0);
+  check('tab title says away', (await page.title()).startsWith('Away'), await page.title());
+  await page.click('#phone-btn');
+  await page.waitForFunction(() => document.querySelector('#phone-btn').getAttribute('aria-pressed') === 'false');
   await page.click('#stop-btn');
   await page.locator('#summary').waitFor({ state: 'visible' });
   const grade = await text(page, '#grade');

@@ -169,13 +169,20 @@ function renderAnchorStatus() {
 
 function phoneMeta(s) {
   const { phone } = s;
+  if (s.away) {
+    return "You're away from your anchor, so your phone is free and nothing goes off. The study timer is paused. Walk back to keep studying, or press Stop.";
+  }
   if (phone.onPhone) {
     const next = phone.nextLevelInMs === null ? 'Top of the rubric.' : `Next step in ${Math.ceil(phone.nextLevelInMs / 1000)} s.`;
     return `Step ${phone.level + 1} of ${phone.maxLevel + 1}: ${phone.levelName}. ${next}`;
   }
+  if (phone.graceLeftMs !== null) {
+    const left = Math.ceil(phone.graceLeftMs / 1000);
+    return `Back on within ${left} s and you pick up where you left off: step ${phone.restingLevel + 1}, ${clock(phone.stintMs)} on the timer. Stay off and it all resets to step 1.`;
+  }
   if (phone.pickups === 0) return 'No pickups yet. Keep it that way.';
   const cost = s.cost > 0 ? ` That is ${money(s.cost)} of tuition.` : '';
-  return `${plural(phone.pickups, 'pickup')}, ${clock(phone.totalMs)} on your phone.${cost} Your next pickup starts at step ${phone.restingLevel + 1}.`;
+  return `${plural(phone.pickups, 'pickup')}, ${clock(phone.totalMs)} on your phone.${cost} Fully reset: your next pickup starts at step 1.`;
 }
 
 function renderLock(s) {
@@ -194,17 +201,24 @@ function renderLock(s) {
   setText('stop-why', why);
 }
 
-function renderRubric(s) {
+function rubricState(s, i) {
   const { phone } = s;
-  const hasHistory = phone.pickups > 0;
+  if (s.away) return 'ahead';
+  if (phone.onPhone) return i < phone.level ? 'reached' : i === phone.level ? 'current' : 'ahead';
+  if (phone.restingLevel === null) return 'ahead';
+  return i < phone.restingLevel ? 'cooling' : i === phone.restingLevel ? 'resting' : 'ahead';
+}
+
+function renderRubric(s) {
   [...$('rubric-list').children].forEach((li, i) => {
-    let state = 'ahead';
-    if (phone.onPhone) state = i < phone.level ? 'reached' : i === phone.level ? 'current' : 'ahead';
-    else if (hasHistory) state = i < phone.restingLevel ? 'cooling' : i === phone.restingLevel ? 'resting' : 'ahead';
+    const state = rubricState(s, i);
     if (li.dataset.state !== state) li.dataset.state = state;
   });
   const every = `${rules.levelMs / 1000} seconds`;
-  setText('rubric-sub', phone.onPhone ? 'Getting off clears every effect at once.' : `One step every ${every} on your phone. Cools down one step per ${every} off it.`);
+  let sub = `One step every ${every} on your phone. Off for ${every} and it all resets to step 1.`;
+  if (s.phone.onPhone) sub = 'Getting off clears every effect at once.';
+  if (s.away) sub = 'Away from your anchor: none of this applies.';
+  setText('rubric-sub', sub);
 }
 
 function renderSession(s) {
@@ -213,6 +227,8 @@ function renderSession(s) {
   show('speed-stamp', s.demoSpeed !== 1);
   setText('speed-stamp', `Demo speed ${s.demoSpeed}x`);
   setText('study-time', clock(study.remainingMs));
+  setText('study-label', s.away ? 'Paused while you are away' : 'Left to study');
+  $('session').dataset.away = String(s.away);
   show('penalty-note', study.penaltyMs > 0);
   setText('penalty-note', `+${clock(study.penaltyMs)} added for phone time`);
 
@@ -251,6 +267,7 @@ function renderSummary(summary) {
   setText('sum-penalty', `+${clock(summary.penaltyMs)}`);
   setText('sum-cost', money(summary.cost));
   setText('sum-worst', summary.maxLevelName ?? 'None');
+  setText('sum-away', clock(summary.awayMs));
   setText('summary-sub', summary.endedEarly ? 'Ended early: you walked away from your anchor.' : 'Timer finished. Handed back.');
   setText('remark', REMARKS[summary.grade[0]] ?? '');
 }
@@ -272,7 +289,9 @@ function renderPresenter(s) {
 function renderTitle(s) {
   let title = 'Anchor';
   if (s.status === 'running') {
-    title = s.phone.onPhone ? `📵 ${clock(s.phone.stintMs)} on your phone` : `${clock(s.study.remainingMs)} left · Anchor`;
+    if (s.away) title = `Away, paused · ${clock(s.study.remainingMs)} left · Anchor`;
+    else if (s.phone.onPhone) title = `📵 ${clock(s.phone.stintMs)} on your phone`;
+    else title = `${clock(s.study.remainingMs)} left · Anchor`;
   } else if (s.status === 'done' && s.summary) {
     title = `Graded ${s.summary.grade} · Anchor`;
   }

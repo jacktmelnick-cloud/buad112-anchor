@@ -68,7 +68,8 @@ export function createPlan() {
   });
 }
 
-const isActive = (snap) => snap.status === 'running' && snap.phone.onPhone;
+/** Effects only fire on the phone at the anchor; away from it the phone is just a phone. */
+const isActive = (snap) => snap.status === 'running' && snap.phone.onPhone && !snap.away;
 const isDue = (last, every, now) => last === null || now - last >= every;
 
 /**
