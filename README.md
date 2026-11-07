@@ -60,7 +60,7 @@ remaining steps come every 20 seconds: red at 0:20, blur at 0:40, shake at 1:00,
 starts going at 3:00.
 
 The shake moves a blurred snapshot of your whole screen, so it needs Screen Recording permission for
-the app you run `npm start` from (Terminal already has it on Sam's Mac). Without it, only the screen
+the app you run `npm start` from (usually Terminal). Without it, only the screen
 edges rattle, and Anchor prints how to turn it on.
 
 **Tuition:** the cover asks for your college's yearly tuition and turns it into what one minute of class
@@ -121,3 +121,8 @@ npm run e2e     # full flow in a real browser (silent, no overlay); pass a folde
 - `native/Overlay.swift`: the full-screen overlay and floating panels, driven over stdin.
 - `src/server.js`: localhost only, same-origin JSON only, live updates over server-sent events.
 - `public/`: the page, designed as an exam blue book (see `DESIGN.md`).
+
+## Fonts
+
+Archivo and Kalam are bundled under the SIL Open Font License 1.1; see `public/fonts/OFL-Archivo.txt`
+and `public/fonts/OFL-Kalam.txt`.
