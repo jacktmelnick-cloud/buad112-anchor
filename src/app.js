@@ -144,7 +144,7 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
       return ok(this.phoneNow());
     },
 
-    /** iOS Shortcut: Settings or Shortcuts opened. Not phone time; inside the zone it's always locked. */
+    /** iOS Shortcut: Settings opened (iOS can't watch the Shortcuts app itself). Not phone time; inside the zone it's always locked. */
     phoneGuarded({ fix }) {
       if (fix) this.location(fix);
       return ok(guardEffects(this.phoneNow()));

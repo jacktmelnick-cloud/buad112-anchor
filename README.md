@@ -29,7 +29,7 @@ Anchor punishes your **phone**. Inside a 50 m zone around your anchor, opening a
 
 **Guest mode:** the QR on the Mac page is now a guest QR. Classmates who scan it land on `/guest.html`, which shows the presenter's session live (study time, phone time, current step, tuition burned, deposit, grade) and lets them try a sandbox of the ladder on their own phone. Guests are read-only and the sandbox sends nothing to the server. The "Show my phone's QR (private)" button reveals the owner QR. Delete `data/guest-token.txt` to rotate the guest key.
 
-Opening Settings or Shortcuts inside the zone bounces you to a locked screen. The Mac effects (sound, speech, overlay) are opt-in: `ANCHOR_MAC=1 npm start`.
+Opening Settings inside the zone bounces you to a locked screen. (iOS won't let an automation watch the Shortcuts app itself, so that one gap stays open.) The Mac effects (sound, speech, overlay) are opt-in: `ANCHOR_MAC=1 npm start`.
 
 ---
 

@@ -95,7 +95,7 @@ export function phoneEffects(snap, { passUntil }, now) {
 }
 
 /**
- * Opening Settings or Shortcuts inside the zone: that's where you'd undo all of this, so it always
+ * Opening Settings inside the zone: that's where you'd undo all of this, so it always
  * bounces to the locked page, with every effect re-applied.
  * @param {ReturnType<typeof phoneEffects>} fx
  */

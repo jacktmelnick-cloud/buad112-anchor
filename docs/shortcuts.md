@@ -25,7 +25,7 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 | Anchor Enforcer | Re-applies everything every 15 s while you're at the anchor |
 | Anchor App Opened | Called by automation 1 |
 | Anchor App Closed | Called by automation 2 |
-| Anchor Guard | Called by automation 3 (Settings, Shortcuts) |
+| Anchor Guard | Called by automation 3 (Settings) |
 | Anchor Leave | Called by automation 4 (leaving your study spot) |
 
 **Got the iCloud links?** Open the Anchor page on the phone, expand "Set up this iPhone", tap each **Add** button, paste the base URL and key when Anchor Config asks. Then do section 9 (automations). That's about 3 minutes in total. Sections 1-8 are only for the person **building** the shortcuts the first time.
@@ -84,14 +84,14 @@ Shortcuts, **Automation** tab, **+**. For each one: **Run Immediately** on, **No
 |---|---|
 | App, **Is Opened**: Instagram, TikTok, YouTube, ... | Anchor App Opened |
 | App, **Is Closed**: same apps | Anchor App Closed |
-| App, **Is Opened**: Settings, Shortcuts | Anchor Guard |
+| App, **Is Opened**: Settings | Anchor Guard |
 | **Leave**: your study spot | Anchor Leave |
 
 ## Limits (honest version)
 
 - iOS may stop the Enforcer in the background after a while. Re-applying on every app open is the backstop.
 - Control Center brightness can't be removed, but Anchor re-applies it.
-- Nothing here truly locks iOS settings. We bounce you away from Settings and Shortcuts.
+- Nothing here truly locks iOS settings. We bounce you away from Settings, but iOS doesn't allow an automation on the Shortcuts app itself, so someone could open Shortcuts and switch the automations off. Only a native Screen Time app can close that gap.
 
 ## Troubleshooting
 
