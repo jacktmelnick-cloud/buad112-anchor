@@ -12,6 +12,7 @@ let gateEndsAt = 0;
 let gateTimer = null;
 let gateSeconds = 0;
 let gatePassed = false;
+let lockedOpen = false;
 const geo = { fix: null, lastSentAt: 0, error: '' };
 
 /* ---------- key ---------- */
@@ -69,13 +70,15 @@ function render(next) {
   snap = next;
   const view = next.status === 'running' ? 'session' : next.status === 'done' ? 'done' : 'setup';
   document.body.dataset.view = view;
-  show('setup', view === 'setup' && !gateOpen);
-  show('session', view === 'session' && !gateOpen);
-  show('done', view === 'done' && !gateOpen);
+  const cover = gateOpen || lockedOpen;
+  show('setup', view === 'setup' && !cover);
+  show('session', view === 'session' && !cover);
+  show('done', view === 'done' && !cover);
   if (view === 'session') renderSession(next);
   if (view === 'done') renderDone(next);
   renderEffects(next);
   if (gateOpen) renderGate();
+  if (lockedOpen) renderLocked();
 }
 
 function renderSession(s) {
@@ -149,9 +152,10 @@ function renderDone(s) {
 
 function renderEffects(s) {
   const fx = s.phoneFx || {};
-  const on = s.status === 'running' && fx.active && s.phone.onPhone;
+  const on = s.status === 'running' && Boolean(fx.active);
   document.body.dataset.gray = String(Boolean(on && fx.grayscale));
   $('dim').dataset.on = String(Boolean(on && fx.dim));
+  document.documentElement.style.fontSize = on && fx.bigText ? '125%' : '';
 }
 
 /* ---------- gate ---------- */
@@ -190,11 +194,15 @@ function renderGate() {
   const showCost = Boolean(s && costIdx >= 0 && s.phone.level >= costIdx);
   show('gate-cost', showCost);
   if (showCost) setText('gate-cost-amt', money(s.cost));
-  const notes = [];
-  if (fx.grayscale) notes.push('Your phone is grey now. It gets worse.');
-  if (fx.dim) notes.push('And the screen is dim.');
-  show('gate-fx', notes.length > 0);
-  setText('gate-fx', notes.join(' '));
+  const on = [];
+  if (fx.grayscale) on.push('grey');
+  if (fx.silentOff) on.push('loud');
+  if (fx.dim) on.push('dim');
+  if (fx.bigText) on.push('huge text');
+  if (fx.shame) on.push('shame wallpaper');
+  if (fx.flash) on.push('flashlight');
+  show('gate-fx', on.length > 0);
+  setText('gate-fx', on.length ? `Your phone is now: ${on.join(', ')}. It gets worse.` : '');
   const confess = Boolean(fx.confess);
   show('gate-form', confess && !gatePassed);
   setText('gate-phrase', confess ? `Type: "${s.confession?.phrase || rules.confession}"` : '');
@@ -217,6 +225,32 @@ async function passGate() {
   show('gate-ok', true);
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 }
+
+/* ---------- locked ---------- */
+
+function openLocked() {
+  lockedOpen = true;
+  show('locked', true);
+  if (snap) render(snap);
+  renderLocked();
+}
+
+function closeLocked() {
+  lockedOpen = false;
+  show('locked', false);
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  if (snap) render(snap);
+}
+
+function renderLocked() {
+  show('locked', true);
+  for (const id of ['setup', 'session', 'done', 'gate']) show(id, false);
+  const loc = snap?.location;
+  const togo = loc && loc.distanceM != null ? Math.max(0, Math.ceil((loc.unlockAtM ?? 50) - loc.distanceM)) : null;
+  setText('locked-dist', togo === null ? 'Walk away' : `${togo} m`);
+}
+
+const runEnforcer = () => { location.href = 'shortcuts://run-shortcut?name=Anchor%20Enforcer'; };
 
 /* ---------- location ---------- */
 
@@ -281,6 +315,7 @@ async function onStart(event) {
     if (deposit) body.deposit = deposit;
     const res = await api('/api/start', body);
     if (!res.ok) throw new Error(res.error);
+    runEnforcer();
   } catch (err) {
     setText('start-error', err.message);
   } finally {
@@ -295,7 +330,18 @@ async function simulateOpen() {
   if (res.data?.gate) { document.querySelector('.presenter').open = false; openGate(res.data); }
 }
 
+async function simulateGuard() {
+  const res = await api('/api/phone/guard', { app: 'Settings' });
+  if (!res.ok) return setText('session-error', res.error);
+  setText('session-error', '');
+  if (res.data?.locked) { document.querySelector('.presenter').open = false; openLocked(); }
+}
+
 function wire() {
+  $('guard-btn').addEventListener('click', simulateGuard);
+  $('enforcer-btn').addEventListener('click', runEnforcer);
+  $('locked-back').addEventListener('click', closeLocked);
+  show('a2hs', window.navigator.standalone === false);
   $('start-form').addEventListener('submit', onStart);
   $('stop-btn').addEventListener('click', async () => { const r = await api('/api/stop', {}); if (!r.ok) setText('session-error', r.error); });
   $('again-btn').addEventListener('click', async () => { const r = await api('/api/reset', {}); if (!r.ok) setText('done-error', r.error); });
@@ -310,7 +356,7 @@ function wire() {
   $('gate-input').addEventListener('input', renderGate);
   $('gate-form').addEventListener('submit', (e) => { e.preventDefault(); if (!$('gate-btn').disabled) passGate(); });
   $('gate-back').addEventListener('click', closeGate);
-  window.addEventListener('hashchange', () => { if (location.hash === '#gate' && !gateOpen) openGate(); });
+  window.addEventListener('hashchange', () => { if (location.hash === '#gate' && !gateOpen) openGate(); if (location.hash === '#locked' && !lockedOpen) openLocked(); });
 }
 
 function connect() {
@@ -333,6 +379,7 @@ async function init() {
   startLocation();
   connect();
   if (location.hash === '#gate') openGate();
+  if (location.hash === '#locked') openLocked();
 }
 
 init();

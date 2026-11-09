@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Anchor">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#a9c7ec">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <title>Anchor</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -30,6 +34,7 @@
         <input class="field__input" name="tuitionPerYear" type="text" inputmode="numeric" autocomplete="off" placeholder="70,000"></label>
       <label class="field"><span class="field__label">Deposit (optional, play money)</span>
         <input class="field__input" name="deposit" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></label>
+      <p class="hint" id="a2hs" hidden>Tip: tap Share, then Add to Home Screen, so Anchor opens like an app.</p>
       <button class="btn btn--ink" type="submit" id="start-btn">Drop anchor &amp; start</button>
       <p class="error" id="start-error" role="alert"></p>
     </form>
@@ -50,6 +55,8 @@
       <ol class="rubric" id="rubric"></ol>
       <button class="btn btn--outline" type="button" id="stop-btn" disabled>Stop studying</button>
       <p class="hint" id="stop-why"></p>
+      <button class="btn btn--pen" type="button" id="enforcer-btn">Start the Enforcer</button>
+      <p class="hint">Runs the Anchor Enforcer shortcut, which re-applies the punishments every 15 s while you're at your anchor.</p>
       <p class="error" id="session-error" role="alert"></p>
     </section>
 
@@ -62,6 +69,7 @@
           <input type="range" id="sim-range" min="0" max="200" step="1" value="0"></label>
         <button class="btn btn--outline btn--small" type="button" id="sim-reset">Use real GPS</button>
         <button class="btn btn--pen" type="button" id="open-btn">Simulate opening Instagram</button>
+        <button class="btn btn--pen" type="button" id="guard-btn">Simulate opening Settings</button>
         <button class="btn btn--outline btn--small" type="button" id="close-btn">I closed the app</button>
       </div>
     </details>
@@ -94,6 +102,16 @@
       <p class="gate__ok" id="gate-ok" hidden></p>
       <p class="error error--gate" id="gate-error" role="alert"></p>
       <button class="gate__back" type="button" id="gate-back">Back to Anchor</button>
+    </div>
+  </main>
+
+  <!-- LOCKED -->
+  <main class="gate" id="locked" hidden>
+    <div class="gate__inner">
+      <p class="gate__kicker">Settings are locked until you leave your anchor.</p>
+      <p class="gate__count" id="locked-dist">50 m</p>
+      <p class="gate__line">to go.</p>
+      <button class="gate__back" type="button" id="locked-back">Back to Anchor</button>
     </div>
   </main>
 
