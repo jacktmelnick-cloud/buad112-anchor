@@ -287,10 +287,6 @@ export function createHttpServer({
       return local ? success(res, connect()) : failure(res, 403, 'Only the Mac can show the pairing code.');
     }
     if (req.method === 'GET' && pathname === '/api/phone/now') return success(res, app.phoneNow());
-    if (req.method === 'GET' && pathname === '/api/wallpaper.png') {
-      res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'image/png' });
-      return res.end(app.wallpaper());
-    }
     if (req.method === 'GET' && pathname === '/api/state') return success(res, app.state());
     if (req.method === 'GET' && pathname === '/api/rules') return success(res, RULES);
     if (req.method === 'GET' && pathname === '/events') return serveEvents(req, res, app, streams);

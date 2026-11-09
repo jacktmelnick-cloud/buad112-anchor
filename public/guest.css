@@ -10,10 +10,6 @@
 .post__art { min-height: 150px; border-radius: 8px; padding: 14px; color: #fff; font-weight: 700; display: flex; align-items: flex-end; }
 .post__art--a { background: #d9902f; } .post__art--b { background: #c4553a; } .post__art--c { background: #7a68a6; }
 .feedscreen__actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; display: flex; gap: 8px; padding: 10px 16px calc(var(--safe-b) + 10px); background: var(--paper); border-top: 1px solid var(--rule); }
-.shame { position: fixed; inset: 0; z-index: 50; background: var(--pen); color: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
-.shame__l1 { margin: 0; font: 800 1.3rem var(--print); letter-spacing: 0.08em; }
-.shame__amt { margin: 0; font: 800 4.5rem var(--print); font-stretch: 75%; }
-.shame__l2 { margin: 20px 0 0; font: 700 1.6rem var(--hand); }
 .flash { position: fixed; inset: 0; z-index: 60; background: #fff; opacity: 0; pointer-events: none; }
 .flash[data-on="true"] { opacity: 1; }
 .dim { z-index: 45; }

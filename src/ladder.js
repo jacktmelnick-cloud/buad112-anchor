@@ -56,7 +56,6 @@ const PHONE_STEPS = Object.freeze(
     { id: 'dim', name: 'Dim', note: 'Brightness drops to 15%', sound: false },
     { id: 'cost', name: 'Receipt', note: 'Tuition burned, counted live on the gate', sound: false },
     { id: 'text', name: 'Huge text', note: 'Text size maxed out, feeds are a slog', sound: false },
-    { id: 'shame', name: 'Shame wallpaper', note: 'Your lock screen shows what you burned', sound: false },
     { id: 'flash', name: 'Flashing', note: 'The whole phone flashes, in every app, over and over', sound: false },
     { id: 'confess', name: 'Confession', note: 'Type it to get past the gate (once)', sound: false },
     { id: 'deposit', name: 'Deposit', note: 'Your deposit drains, a bigger bite every minute', sound: false },

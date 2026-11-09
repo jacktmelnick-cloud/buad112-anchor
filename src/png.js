@@ -1,5 +1,5 @@
 /**
- * A tiny PNG writer with a 5x7 block font, so the server can draw the shame wallpaper and the app icon
+ * A tiny PNG writer with a 5x7 block font, so the app icon can be drawn
  * without an image library. Only uppercase letters, digits, and a little punctuation.
  */
 import zlib from 'node:zlib';

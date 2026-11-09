@@ -99,7 +99,7 @@ async function poll() {
 
 /* ---------- sandbox ---------- */
 
-const sb = { mode: 'off', phoneMs: 0, level: 0, gateEnd: 0, confessed: false, shameShown: -1, flashed: -1, depositLost: 0, lastBiteLevel: -1, timer: null };
+const sb = { mode: 'off', phoneMs: 0, level: 0, gateEnd: 0, confessed: false, flashed: -1, depositLost: 0, lastBiteLevel: -1, timer: null };
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const stepIndex = (id) => rules.ladders.phone.steps.findIndex((s) => s.id === id);
 const reached = (id) => sb.level >= stepIndex(id);
@@ -118,12 +118,6 @@ function speak() {
   } catch { /* no speech */ }
 }
 
-function showShame() {
-  setText('sb-shame-amt', money(sbCost()));
-  show('sb-shame', true);
-  setTimeout(() => show('sb-shame', false), 3000);
-}
-
 function doFlash() {
   if (reduceMotion()) return;
   const el = $('sb-flash');
@@ -139,7 +133,6 @@ function doFlash() {
 
 function enterEffects() {
   if (reached('loud')) speak();
-  if (reached('shame')) showShame();
   if (reached('flash')) doFlash();
 }
 
@@ -148,7 +141,6 @@ function levelUp() {
   if (next === sb.level) return;
   sb.level = next;
   applyEffects();
-  if (reached('shame') && sb.shameShown < 0) { sb.shameShown = sb.level; showShame(); }
   if (reached('flash') && sb.flashed < 0) { sb.flashed = sb.level; doFlash(); }
   if (reached('deposit') && sb.level > sb.lastBiteLevel) sb.lastBiteLevel = sb.level;
 }
@@ -206,7 +198,6 @@ function renderGate() {
   if (reached('loud')) on.push('loud');
   if (reached('dim')) on.push('dim');
   if (reached('text')) on.push('huge text');
-  if (reached('shame')) on.push('shame wallpaper');
   if (reached('flash')) on.push('flashing');
   show('sb-fx', on.length > 0);
   setText('sb-fx', on.length ? `Your phone is now: ${on.join(', ')}. It gets worse.` : '');
@@ -240,7 +231,7 @@ function walkAway() {
   const ms = sb.phoneMs;
   sb.mode = 'off';
   applyEffects();
-  for (const id of ['sb-gate', 'sb-feed', 'sb-shame']) show(id, false);
+  for (const id of ['sb-gate', 'sb-feed']) show(id, false);
   show('page', true);
   show('try-idle', false);
   show('try-closed', false);
@@ -251,9 +242,9 @@ function walkAway() {
 }
 
 function resetSandbox() {
-  Object.assign(sb, { mode: 'off', phoneMs: 0, level: 0, confessed: false, shameShown: -1, flashed: -1, depositLost: 0, lastBiteLevel: -1 });
+  Object.assign(sb, { mode: 'off', phoneMs: 0, level: 0, confessed: false, flashed: -1, depositLost: 0, lastBiteLevel: -1 });
   applyEffects();
-  for (const id of ['sb-gate', 'sb-feed', 'sb-shame', 'try-closed', 'try-done']) show(id, false);
+  for (const id of ['sb-gate', 'sb-feed', 'try-closed', 'try-done']) show(id, false);
   $('sb-flash').dataset.on = 'false';
   show('page', true);
   show('try-idle', true);

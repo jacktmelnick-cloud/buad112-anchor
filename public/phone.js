@@ -199,7 +199,6 @@ function renderGate() {
   if (fx.silentOff) on.push('loud');
   if (fx.dim) on.push('dim');
   if (fx.bigText) on.push('huge text');
-  if (fx.shame) on.push('shame wallpaper');
   if (fx.flash) on.push('flashing');
   show('gate-fx', on.length > 0);
   setText('gate-fx', on.length ? `Your phone is now: ${on.join(', ')}. It gets worse.` : '');
@@ -367,7 +366,7 @@ async function onStart(event) {
 }
 
 /* ---------- stand-ins for the Shortcut-only effects ---------- */
-// A web page can't flash other apps, change silent mode or volume, or set the wallpaper, so the page
+// A web page can't flash other apps, or change silent mode or volume, so the page
 // shows them on screen instead. On a real app open the Shortcuts do the real thing.
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -495,14 +494,7 @@ function flashScreen(times) {
   step();
 }
 
-function showShame() {
-  $('shame-img').src = `/api/wallpaper.png?k=${encodeURIComponent(key)}&t=${Date.now()}`;
-  show('shame', true);
-  return new Promise((resolve) => setTimeout(() => { show('shame', false); resolve(); }, 3000));
-}
-
 async function standIns(fx) {
-  if (fx.shame) await showShame();
   if (fx.flash) flashScreen(3);
 }
 

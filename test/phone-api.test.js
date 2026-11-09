@@ -99,7 +99,6 @@ describe('phone mode over the tunnel', () => {
       ['GET', '/api/state'],
       ['GET', '/events'],
       ['GET', '/api/phone/now'],
-      ['GET', '/api/wallpaper.png'],
       ['GET', '/api/connect'],
     ]) {
       const r = await remote(method, route, { key: GUEST, body: method === 'POST' ? { simulatedM: 400 } : undefined });
@@ -165,7 +164,7 @@ describe('phone mode over the tunnel', () => {
     }
     const snap = app.state();
     assert.equal(snap.quiet, true);
-    assert.equal(snap.phone.maxLevel, 7);
+    assert.equal(snap.phone.maxLevel, 6);
     assert.equal(app.phoneNow().flash, true);
   });
 
@@ -206,16 +205,12 @@ describe('phone mode over the tunnel', () => {
     assert.equal(fx.brightnessPercent, 15);
   });
 
-  test('huge text, shame wallpaper, and flashlight come later', async () => {
+  test('huge text, then flashing, come later', async () => {
     await startPhoneSession();
     await open();
     advance(76_000);
     let fx = (await open()).json.data;
     assert.equal(fx.bigText, true);
-    assert.equal(fx.shame, false);
-    advance(15_000);
-    fx = (await open()).json.data;
-    assert.equal(fx.shame, true);
     assert.equal(fx.flash, false);
     advance(15_000);
     fx = (await open()).json.data;
@@ -248,13 +243,6 @@ describe('phone mode over the tunnel', () => {
     assert.equal(fx.reapplySeconds, 0);
   });
 
-  test('the shame wallpaper is a PNG and needs the key', async () => {
-    await startPhoneSession();
-    const r = await remote('GET', '/api/wallpaper.png');
-    assert.equal(r.status, 200);
-    assert.equal(r.text.slice(1, 4), 'PNG');
-    assert.equal((await remote('GET', '/api/wallpaper.png', { key: null })).status, 403);
-  });
 
   test('closing the app pauses the clock; the step stays', async () => {
     await startPhoneSession();
@@ -310,13 +298,13 @@ describe('phone mode over the tunnel', () => {
   test('the phone ladder ends in the deposit only when money is down', async () => {
     await startPhoneSession({ deposit: 20 });
     assert.equal(app.state().mode, 'phone');
-    assert.equal(app.state().phone.maxLevel, 9);
+    assert.equal(app.state().phone.maxLevel, 8);
   });
 });
 
 /** Forward every app method to the current `app`, which beforeEach replaces. */
 function proxy() {
-  const names = ['wallpaper', 'state', 'start', 'phone', 'location', 'demo', 'confess', 'stop', 'reset', 'subscribe'];
+  const names = ['state', 'start', 'phone', 'location', 'demo', 'confess', 'stop', 'reset', 'subscribe'];
   const out = Object.fromEntries(names.map((n) => [n, (...args) => app[n](...args)]));
   out.phoneOpened = (e) => app.phoneOpened(e);
   out.phoneClosed = (e) => app.phoneClosed(e);

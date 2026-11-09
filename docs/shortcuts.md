@@ -11,7 +11,6 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 3. Remove the loopholes:
    - Open **Control Center** (swipe down from the top-right corner) and **press and hold** an empty spot until the icons jiggle (or tap **+** top-left). Tap **–** on **Text Size** (AA), **Accessibility Shortcuts**, **Color Filters**, and **Dark Mode** if they're there. Tap empty space to finish. (Older iOS: Settings, Control Center.)
    - Settings, Accessibility, **Accessibility Shortcut** (near the bottom): uncheck everything, so triple-click can't undo grayscale.
-4. Save a normal wallpaper you like to your Photos, so "Anchor Restore" can put it back.
 5. Scan the QR with the camera, open the page, Share, **Add to Home Screen**. The key comes from `?k=` in the URL you saved it from.
 
 ## How it fits together
@@ -21,7 +20,7 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 | Shortcut | What it does |
 |---|---|
 | Anchor Config | Holds your base URL and key |
-| Anchor Apply | Applies what the server says (grey, loud, dim, text, wallpaper, flashing) |
+| Anchor Apply | Applies what the server says (grey, loud, dim, text, flashing) |
 | Anchor Restore | Puts the phone back to normal |
 | Anchor Enforcer | Re-applies everything every 15 s while you're at the anchor |
 | Anchor App Opened | Called by automation 1 |
@@ -46,12 +45,11 @@ Input: the `data` dictionary.
 3. **If** `silentOff`: **Set Silent Mode** Off (skip if your iOS doesn't have it), **Set Volume** to `volumePercent` %.
 4. **Set Brightness** to `brightnessPercent` %.
 5. **Set Text Size**: Largest if `bigText`, otherwise Default.
-6. **If** `shame`: Run Anchor Config → Get Contents of URL `[base]/api/wallpaper.png` → **Set Wallpaper** (Lock and Home Screen, **Show Preview off**).
 7. **If** `flash`: Repeat `flashBlinks` times: **Set Classic Invert** On, Wait 1 s, Set Classic Invert Off, Wait 1 s. This flips the colours of the whole phone, in whatever app is open. Keep the Waits: never faster than one flash a second. (Search "Invert" in the action list; if Classic Invert is missing, use Set Smart Invert.)
 
 ## 3. Anchor Restore
 
-Color Filters Off → Set Classic Invert Off → Set Brightness 60% → Set Text Size Default → Set Wallpaper to your normal wallpaper (Show Preview off).
+Color Filters Off → Set Classic Invert Off → Set Brightness 60% → Set Text Size Default (Show Preview off).
 
 ## 4. Anchor Enforcer
 
@@ -108,6 +106,6 @@ Shortcuts, **Automation** tab, **+**. For each one: **Run Immediately** on, **No
 1. Projector shows the Mac page with the QR. Scan it; the phone page opens (or launch the Home Screen app).
 2. Set 5 minutes, tuition, a play-money deposit. **Drop anchor & start**. Presenter: speed **5x**.
 3. Open Instagram: bounced to the gate. Wait.
-4. Keep opening it. At 5x a step lands every 3 s: grey, **loud**, dim, tuition receipt, **huge text**, **shame wallpaper**, **flashing**, the confession, the deposit draining.
+4. Keep opening it. At 5x a step lands every 3 s: grey, **loud**, dim, tuition receipt, **huge text**, **flashing**, the confession, the deposit draining.
 5. Open Settings: the locked screen says how far you have to walk.
 6. Walk away or drag Simulated distance past 50 m. Effects lift, **Stop** unlocks, show the grade.
