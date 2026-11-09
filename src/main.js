@@ -101,6 +101,8 @@ function main() {
     log,
     token,
     guestToken,
+    // Phone mode opens on the presenter screen; Sam's original Mac page stays at /index.html.
+    home: mac ? 'index.html' : 'present.html',
     connect: () => tunnel?.connect() ?? { url: null, qrSvg: null, error: 'Tunnel is off (ANCHOR_TUNNEL=0).' },
   });
   const loop = setInterval(() => app.step(), LOOP_MS);
@@ -109,7 +111,7 @@ function main() {
     log.error(error.code === 'EADDRINUSE' ? `Port ${port} is busy. Try PORT=5113 npm start` : 'Server error', error);
     process.exit(1);
   });
-  server.listen(port, '127.0.0.1', () => log.info(`Anchor is running at http://localhost:${port}`));
+  server.listen(port, '127.0.0.1', () => log.info(`Anchor is running. Presenter screen: http://localhost:${port}`));
 
   let closed = false;
   const shutdown = (code) => {

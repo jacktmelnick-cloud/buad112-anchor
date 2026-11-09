@@ -156,8 +156,8 @@ function serveEvents(req, res, app, streams) {
   return undefined;
 }
 
-function serveStatic(pathname, res, publicDir) {
-  const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
+function serveStatic(pathname, res, publicDir, home = 'index.html') {
+  const relative = pathname === '/' ? home : pathname.slice(1);
   const resolved = path.resolve(publicDir, relative);
   const insidePublic = resolved.startsWith(publicDir + path.sep);
   const type = CONTENT_TYPES[path.extname(resolved)];
@@ -217,6 +217,7 @@ export function guestView(snap) {
  *   log?: ReturnType<typeof createLogger>,
  *   token?: string | null,
  *   guestToken?: string | null,
+ *   home?: string,
  *   connect?: () => { url: string | null, qrSvg: string | null },
  * }} deps
  * @returns {http.Server}
@@ -227,6 +228,7 @@ export function createHttpServer({
   log = createLogger(),
   token = null,
   guestToken = null,
+  home = 'index.html',
   connect = () => ({ url: null, qrSvg: null }),
 }) {
   const root = path.resolve(publicDir);
@@ -260,7 +262,7 @@ export function createHttpServer({
     if (req.method === 'GET' && pathname === '/api/state') return success(res, app.state());
     if (req.method === 'GET' && pathname === '/api/rules') return success(res, RULES);
     if (req.method === 'GET' && pathname === '/events') return serveEvents(req, res, app, streams);
-    if (req.method === 'GET') return serveStatic(pathname, res, root);
+    if (req.method === 'GET') return serveStatic(pathname, res, root, home);
     if (req.method !== 'POST') return failure(res, 405, 'Method not allowed.');
 
     // A keyed request (phone page, Shortcuts) proved itself; Shortcuts send no Origin at all.
