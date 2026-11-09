@@ -38,6 +38,30 @@
       <button class="btn btn--ink" type="submit" id="start-btn">Drop anchor &amp; start</button>
       <p class="error" id="start-error" role="alert"></p>
     </form>
+
+    <details class="sheet install" id="install">
+      <summary class="install__title">Set up this iPhone (one time, about 3 min)</summary>
+      <ol class="install__steps">
+        <li>
+          <p>Tap each one, then <b>Add Shortcut</b>. When Anchor Config asks, paste these:</p>
+          <p class="install__copy"><span class="field__label">Base URL</span> <code id="copy-base"></code>
+            <button class="btn btn--small btn--paper" type="button" data-copy="copy-base">Copy</button></p>
+          <p class="install__copy"><span class="field__label">Key</span> <code id="copy-key"></code>
+            <button class="btn btn--small btn--paper" type="button" data-copy="copy-key">Copy</button></p>
+          <ul class="install__links" id="install-links"></ul>
+        </li>
+        <li>In Shortcuts, Automation tab, add four automations. Each one has <b>Run Immediately</b> on and a single action, <b>Run Shortcut</b>:
+          <ul class="install__autos">
+            <li>App <b>is Opened</b> (Instagram, TikTok, ...) → Anchor App Opened</li>
+            <li>App <b>is Closed</b> (same apps) → Anchor App Closed</li>
+            <li>App <b>is Opened</b> (Settings, Shortcuts) → Anchor Guard</li>
+            <li><b>Leave</b> your study spot → Anchor Leave</li>
+          </ul>
+        </li>
+        <li>Settings, Accessibility, Color Filters: pick <b>Grayscale</b>, leave it off.</li>
+      </ol>
+      <label class="install__done"><input type="checkbox" id="installed"> Shortcuts are set up. Start the Enforcer when I drop the anchor.</label>
+    </details>
   </main>
 
   <!-- SESSION -->

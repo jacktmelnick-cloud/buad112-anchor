@@ -1,6 +1,6 @@
 # iPhone Shortcuts setup
 
-About 20 minutes, once. After that, nothing changes between demos if you use the ngrok static domain (see README). With the Cloudflare fallback, only "Anchor Config" changes.
+**Have the iCloud links?** About 3 minutes: see "How it fits together". **Building the shortcuts yourself:** about 20 minutes, once. After that, nothing changes between demos if you use the ngrok static domain (see README). With the Cloudflare fallback, only "Anchor Config" changes.
 
 You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The Anchor page on the Mac shows a QR code, the base URL and the key.
 
@@ -12,64 +12,81 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 4. Save a normal wallpaper you like to your Photos, so "Anchor Restore" can put it back.
 5. Scan the QR with the camera, open the page, Share, **Add to Home Screen**. The key comes from `?k=` in the URL you saved it from.
 
-## 1. Shortcut "Anchor Config"
+## How it fits together
 
-Dictionary with Text items `base` (the https URL, no trailing slash) and `key` (the key on the Mac page). Then **Stop and Output** the Dictionary.
+8 shortcuts hold all the logic. The 4 automations each have a single action: **Run Shortcut**.
 
-Everything below starts with **Run Shortcut: Anchor Config** and reads `base` and `key` from its output. Called `[base]` and `[key]` here.
+| Shortcut | What it does |
+|---|---|
+| Anchor Config | Holds your base URL and key |
+| Anchor Apply | Applies what the server says (grey, loud, dim, text, wallpaper, flashlight) |
+| Anchor Restore | Puts the phone back to normal |
+| Anchor Enforcer | Re-applies everything every 15 s while you're at the anchor |
+| Anchor App Opened | Called by automation 1 |
+| Anchor App Closed | Called by automation 2 |
+| Anchor Guard | Called by automation 3 (Settings, Shortcuts) |
+| Anchor Leave | Called by automation 4 (leaving your study spot) |
 
-## 2. Shortcut "Anchor Apply"
+**Got the iCloud links?** Open the Anchor page on the phone, expand "Set up this iPhone", tap each **Add** button, paste the base URL and key when Anchor Config asks. Then do section 9 (automations). That's about 3 minutes in total. Sections 1-8 are only for the person **building** the shortcuts the first time.
 
-Accepts Shortcut Input: the `data` dictionary from the server. Actions:
+`[base]` and `[key]` below mean the outputs of **Run Shortcut: Anchor Config**. Every Get Contents of URL sends header `x-anchor-key: [key]`, and every POST sends a JSON body.
 
-1. Run Shortcut Anchor Config.
-2. **If** `grayscale` is true: Set Color Filters **On**. Otherwise: Off.
-3. **If** `silentOff` is true: **Set Silent Mode** Off (skip if missing), then **Set Volume** to `volumePercent` %.
+## 1. Anchor Config
+
+Dictionary with Text items `base` (the https URL, no trailing slash) and `key`, then **Stop and Output** it.
+For sharing: shortcut **details (i)**, **Setup**, add **Import Questions** for both Text items ("Paste the Base URL from the Anchor page", "Paste the Key"). Then whoever adds it is asked for their own.
+
+## 2. Anchor Apply
+
+Input: the `data` dictionary.
+1. **If** `active` is false: Run Shortcut Anchor Restore, **Stop This Shortcut**.
+2. **If** `grayscale`: Set Color Filters **On**, otherwise **Off**.
+3. **If** `silentOff`: **Set Silent Mode** Off (skip if your iOS doesn't have it), **Set Volume** to `volumePercent` %.
 4. **Set Brightness** to `brightnessPercent` %.
-5. **Set Text Size**: Largest if `bigText` is true, otherwise Default.
-6. **If** `shame` is true: Get Contents of URL `[base]/api/wallpaper.png`, header `x-anchor-key: [key]` → **Set Wallpaper** (Lock Screen and Home Screen, **Show Preview off**).
-7. **If** `flash` is true: Repeat `flashBlinks` times: Set Flashlight On, Wait 1 s, Set Flashlight Off, Wait 1 s.
-8. **If** `active` is false: Run Shortcut **Anchor Restore**.
+5. **Set Text Size**: Largest if `bigText`, otherwise Default.
+6. **If** `shame`: Run Anchor Config → Get Contents of URL `[base]/api/wallpaper.png` → **Set Wallpaper** (Lock and Home Screen, **Show Preview off**).
+7. **If** `flash`: Repeat `flashBlinks` times: Set Flashlight On, Wait 1 s, Set Flashlight Off, Wait 1 s.
 
-## 3. Shortcut "Anchor Restore"
+## 3. Anchor Restore
 
-Color Filters Off, Set Brightness 60%, Set Text Size Default, Set Wallpaper to your saved photo (Show Preview off). Run when the session ends or you leave the zone.
+Color Filters Off → Set Brightness 60% → Set Text Size Default → Set Wallpaper to your normal wallpaper (Show Preview off).
 
-## 4. Automation "App Opened" (Instagram, TikTok, etc.)
+## 4. Anchor Enforcer
 
-Automation tab, **+**, App, Is Opened, pick the distracting apps, **Run Immediately**, Notify off.
+Run Anchor Config → **Repeat 500 times**: Get Contents of URL `[base]/api/phone/now` → Get Dictionary Value `data` → **If** `active` is false: Run Anchor Restore, **Stop This Shortcut** → Set Dictionary Value `flashBlinks` = 0 in `data` → Run Anchor Apply with it → **Wait** `reapplySeconds` s.
+The Anchor page starts it when you drop the anchor, once you've ticked "Shortcuts are set up".
 
-1. Run Shortcut Anchor Config.
-2. Get Contents of URL `[base]/api/phone/open`: POST, header `x-anchor-key: [key]`, JSON body `app` = `Instagram`.
-3. Get Dictionary Value `data`.
-4. Run Shortcut **Anchor Apply** with `data` as input.
-5. **If** `gate` is true: Open URLs `[base]/phone.html?k=[key]#gate`.
+## 5. Anchor App Opened
 
-## 5. Automation "App Closed" (same apps)
+Run Anchor Config → POST `[base]/api/phone/open`, body `app` = `app` → Get Dictionary Value `data` → Run Anchor Apply with `data` → **If** `gate` is true: **Open URLs** `[base]/phone.html?k=[key]#gate`.
 
-Same as above with `/api/phone/close`, then Run Anchor Apply. Do **not** restore: effects stay on while you are in the zone.
+## 6. Anchor App Closed
 
-## 6. Automation "Guard" (Settings and Shortcuts)
+Run Anchor Config → POST `[base]/api/phone/close` → `data` → Run Anchor Apply. Effects stay on while you're in the zone; Apply only restores once the server says you're out.
 
-App Is Opened: **Settings** and **Shortcuts**, Run Immediately. POST `[base]/api/phone/guard` (same header, `app` = `Settings`) → Get `data` → Run Anchor Apply → **If** `locked` is true: Open URLs `[base]/phone.html?k=[key]#locked`.
+## 7. Anchor Guard
 
-## 7. Shortcut "Anchor Enforcer"
+Run Anchor Config → POST `[base]/api/phone/guard` → `data` → Run Anchor Apply → **If** `locked` is true: **Open URLs** `[base]/phone.html?k=[key]#locked`.
 
-Re-applies everything every 15 s while you are at your anchor.
+## 8. Anchor Leave
 
-1. Run Shortcut Anchor Config.
-2. **Repeat 500 times:**
-   - Get Contents of URL GET `[base]/api/phone/now`, header `x-anchor-key: [key]`.
-   - Get Dictionary Value `data`.
-   - **If** `active` is false: Run Shortcut Anchor Restore, then **Stop This Shortcut**.
-   - Set `flashBlinks` to 0 in a copy of `data` (or just don't blink here), then Run Anchor Apply.
-   - **Wait** `reapplySeconds` seconds.
+Run Anchor Config → **Get Current Location** → POST `[base]/api/phone/close` with `lat` = Latitude, `lng` = Longitude → `data` → Run Anchor Apply.
 
-The Anchor page starts it for you (it opens `shortcuts://run-shortcut?name=Anchor%20Enforcer` when you start, and has a "Start the Enforcer" button).
+## Sharing them (builder only)
 
-## 8. Automation "Leave" (optional)
+For each of the 8 shortcuts: long-press it, **Share**, **Copy iCloud Link**. Paste the links into `public/shortcuts.json` and commit. The Anchor page's setup card turns each one into an **Add** button.
+Check **Settings, Apps, Shortcuts, Advanced, Allow Running Scripts** if Apply is refused.
 
-Arrive/Leave, Leave, your study spot, Run Immediately. Get Current Location → POST `[base]/api/phone/close` with `lat` and `lng` → Run Anchor Apply (it runs Anchor Restore once the server says the zone is left).
+## 9. The 4 automations (everyone, about 2 min)
+
+Shortcuts, **Automation** tab, **+**. For each one: **Run Immediately** on, **Notify When Run** off, one action **Run Shortcut**.
+
+| Trigger | Run Shortcut |
+|---|---|
+| App, **Is Opened**: Instagram, TikTok, YouTube, ... | Anchor App Opened |
+| App, **Is Closed**: same apps | Anchor App Closed |
+| App, **Is Opened**: Settings, Shortcuts | Anchor Guard |
+| **Leave**: your study spot | Anchor Leave |
 
 ## Limits (honest version)
 

@@ -69,3 +69,15 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .dim { position: fixed; inset: 0; z-index: 40; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
 .dim[data-on="true"] { opacity: 0.6; }
 body[data-gray="true"] { filter: grayscale(1); }
+
+/* one-time install card */
+.install { margin-top: 16px; }
+.install__title { font-weight: 800; cursor: pointer; padding: 4px 0; }
+.install__steps { padding-left: 20px; display: grid; gap: 14px; margin: 12px 0; }
+.install__copy { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.install__copy code { font-size: 13px; word-break: break-all; flex: 1 1 0; min-width: 0; }
+.install__links { list-style: none; padding: 0; display: grid; gap: 8px; margin-top: 10px; }
+.install__links .btn { display: block; text-align: center; text-decoration: none; }
+.install__autos { padding-left: 18px; display: grid; gap: 4px; margin-top: 6px; }
+.install__done { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; }
+.install__done input { width: 22px; height: 22px; flex: none; }

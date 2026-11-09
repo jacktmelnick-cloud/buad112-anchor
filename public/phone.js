@@ -250,6 +250,47 @@ function renderLocked() {
   setText('locked-dist', togo === null ? 'Walk away' : `${togo} m`);
 }
 
+/* ---------- one-time install ---------- */
+
+const INSTALLED_STORE = 'anchor-installed';
+const installed = () => { try { return localStorage.getItem(INSTALLED_STORE) === '1'; } catch { return false; } };
+
+async function renderInstall() {
+  setText('copy-base', location.origin);
+  setText('copy-key', key);
+  $('installed').checked = installed();
+  $('install').open = !installed();
+  let links = [];
+  try {
+    const res = await fetch('shortcuts.json', { cache: 'no-store' });
+    links = (await res.json()).links ?? [];
+  } catch { /* shown as not ready below */ }
+  const list = $('install-links');
+  list.replaceChildren(...links.map(({ name, url }) => {
+    const li = document.createElement('li');
+    const ok = typeof url === 'string' && url.startsWith('https://www.icloud.com/shortcuts/');
+    const el = document.createElement(ok ? 'a' : 'span');
+    el.textContent = ok ? `Add ${name}` : `${name} (link not added yet)`;
+    if (ok) { el.href = url; el.className = 'btn btn--small btn--ink'; }
+    li.append(el);
+    return li;
+  }));
+}
+
+function wireInstall() {
+  $('installed').addEventListener('change', (e) => {
+    try { localStorage.setItem(INSTALLED_STORE, e.target.checked ? '1' : '0'); } catch { /* private mode */ }
+  });
+  document.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($(btn.dataset.copy).textContent);
+      btn.textContent = 'Copied';
+    } catch {
+      btn.textContent = 'Press and hold to copy';
+    }
+  }));
+}
+
 const runEnforcer = () => { location.href = 'shortcuts://run-shortcut?name=Anchor%20Enforcer'; };
 
 /* ---------- location ---------- */
@@ -315,7 +356,7 @@ async function onStart(event) {
     if (deposit) body.deposit = deposit;
     const res = await api('/api/start', body);
     if (!res.ok) throw new Error(res.error);
-    runEnforcer();
+    if (installed()) runEnforcer();
   } catch (err) {
     setText('start-error', err.message);
   } finally {
@@ -376,6 +417,8 @@ async function init() {
   }
   rules = res.data;
   wire();
+  wireInstall();
+  renderInstall();
   startLocation();
   connect();
   if (location.hash === '#gate') openGate();
