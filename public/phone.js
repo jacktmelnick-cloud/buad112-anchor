@@ -377,35 +377,87 @@ let alarmStop = null;
 
 /**
  * Called inside the tap, before any await: iOS only plays sound that starts from a tap. When the Loud
- * step is already on, the alarm and the voice start right here; otherwise the audio is just unlocked.
+ * step is already on (or `force`), the alarm, a tone, and the voice start right here. Each one reports
+ * what happened in the Presenter panel, since iPhones block sound in different ways.
  */
-function soundOnTap() {
+function soundOnTap(force = false) {
+  const loud = force || Boolean(snap?.status === 'running' && snap?.phoneFx?.silentOff);
+  const report = [];
+  const note = (text) => { report.push(text); setText('sound-status', report.join(' · ')); };
+  setText('sound-status', '');
   try {
     // Play through the silent switch, like a video does (Safari 16.4+).
-    if (navigator.audioSession) navigator.audioSession.type = 'playback';
-    if (!alarm) {
-      alarm = new Audio('alarm.wav');
-      alarm.loop = true;
-      alarm.preload = 'auto';
+    if (navigator.audioSession) {
+      navigator.audioSession.type = 'playback';
+      note('silent override on');
+    } else {
+      note('no silent override on this browser');
     }
-    const loud = Boolean(snap?.status === 'running' && snap?.phoneFx?.silentOff);
-    alarm.muted = !loud;
-    alarm.currentTime = 0;
-    alarm.play().catch(() => {});
-    clearTimeout(alarmStop);
-    alarmStop = setTimeout(() => alarm.pause(), loud ? ALARM_MS : 50);
-    if (loud) speak('Put the phone down. You are at your anchor.');
-  } catch { /* no sound */ }
+  } catch (err) { note(`silent override failed: ${err.name}`); }
+  if (!loud) {
+    unlockAudio();
+    return;
+  }
+  playAlarm(note);
+  playTone(note);
+  speak('Put the phone down. You are at your anchor.', note);
 }
 
-function speak(text) {
+/** Before the Loud step, a tap still primes the audio so later taps are allowed to play. */
+function unlockAudio() {
   try {
-    if (!('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
+    alarm = alarm ?? new Audio('alarm.wav');
+    alarm.muted = true;
+    alarm.play().then(() => alarm.pause()).catch(() => {});
+    tone = tone ?? new (window.AudioContext || window.webkitAudioContext)();
+    tone.resume().catch(() => {});
+  } catch { /* priming is best effort */ }
+}
+
+function playAlarm(note) {
+  try {
+    alarm = alarm ?? new Audio('alarm.wav');
+    alarm.loop = true;
+    alarm.muted = false;
+    alarm.volume = 1;
+    if (alarm.readyState > 0) alarm.currentTime = 0;
+    alarm.play().then(() => note('alarm playing')).catch((err) => note(`alarm blocked: ${err.name}`));
+    clearTimeout(alarmStop);
+    alarmStop = setTimeout(() => alarm.pause(), ALARM_MS);
+  } catch (err) { note(`alarm failed: ${err.name}`); }
+}
+
+let tone = null;
+/** A siren made in the browser (Web Audio), a second route in case the audio file is blocked. */
+function playTone(note) {
+  try {
+    tone = tone ?? new (window.AudioContext || window.webkitAudioContext)();
+    tone.resume().catch(() => {});
+    const osc = tone.createOscillator();
+    const gain = tone.createGain();
+    const t = tone.currentTime;
+    osc.type = 'sawtooth';
+    for (let i = 0; i < 8; i += 1) {
+      osc.frequency.setValueAtTime(620, t + i * 0.5);
+      osc.frequency.linearRampToValueAtTime(1350, t + i * 0.5 + 0.45);
+    }
+    gain.gain.setValueAtTime(0.4, t);
+    osc.connect(gain).connect(tone.destination);
+    osc.start(t);
+    osc.stop(t + ALARM_MS / 1000);
+    note(`tone ${tone.state}`);
+  } catch (err) { note(`tone failed: ${err.name}`); }
+}
+
+function speak(text, note = () => {}) {
+  try {
+    if (!('speechSynthesis' in window)) return note('no voice on this browser');
     const line = new SpeechSynthesisUtterance(text);
     line.volume = 1;
+    line.onstart = () => note('voice speaking');
+    line.onerror = (e) => note(`voice error: ${e.error}`);
     speechSynthesis.speak(line);
-  } catch { /* no speech */ }
+  } catch (err) { note(`voice failed: ${err.name}`); }
 }
 
 /** While the Flashing step is on, a burst of flashes every few seconds, for as long as the page is open. */
@@ -471,6 +523,7 @@ async function simulateGuard() {
 
 function wire() {
   $('guard-btn').addEventListener('click', simulateGuard);
+  $('sound-btn').addEventListener('click', () => soundOnTap(true));
   $('enforcer-btn').addEventListener('click', runEnforcer);
   $('locked-back').addEventListener('click', closeLocked);
   show('a2hs', window.navigator.standalone === false);
