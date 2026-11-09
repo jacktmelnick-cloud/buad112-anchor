@@ -154,6 +154,21 @@ describe('phone mode over the tunnel', () => {
     assert.equal(parseRange(undefined, 100), null);
   });
 
+  test('library mode never makes a sound: the Loud step is gone', async () => {
+    await startPhoneSession({ quiet: true });
+    await open();
+    for (let i = 0; i < 12; i += 1) {
+      advance(15_000);
+      const fx = (await open()).json.data;
+      assert.equal(fx.silentOff, false);
+      assert.equal(fx.volumePercent, null);
+    }
+    const snap = app.state();
+    assert.equal(snap.quiet, true);
+    assert.equal(snap.phone.maxLevel, 7);
+    assert.equal(app.phoneNow().flash, true);
+  });
+
   test('the pairing code is only for the Mac', async () => {
     assert.equal((await remote('GET', '/api/connect')).status, 403);
   });

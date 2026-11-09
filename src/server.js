@@ -222,6 +222,7 @@ export function guestView(snap) {
   return {
     status: snap.status,
     mode: snap.mode,
+    quiet: snap.quiet,
     demoSpeed: snap.demoSpeed,
     courseName: snap.config?.courseName ?? null,
     study: { remainingMs: snap.study.remainingMs, targetMs: snap.study.targetMs },

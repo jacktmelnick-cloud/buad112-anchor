@@ -91,3 +91,7 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .shame { position: fixed; inset: 0; z-index: 55; background: #d7262e; display: grid; place-items: center; }
 .shame[hidden] { display: none; }
 .shame img { max-width: 100%; max-height: 100%; }
+
+/* setup toggle */
+.toggle { display: flex; gap: 12px; align-items: flex-start; font-size: 0.95rem; line-height: 1.4; }
+.toggle input { width: 24px; height: 24px; flex: none; margin-top: 2px; }

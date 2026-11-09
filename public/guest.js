@@ -76,6 +76,11 @@ function renderLive(g) {
   setText('live-course', g.courseName || 'BUAD 112');
   setText('live-time', clock(g.study.remainingMs));
   setText('live-phone', clock(g.phone.totalMs));
+  const ladderKey = `phone${g.quiet ? '-quiet' : ''}${g.deposit ? '' : '-nodeposit'}`;
+  if ($('live-rubric').dataset.ladder !== ladderKey && rules.ladders[ladderKey]) {
+    buildRubric($('live-rubric'), rules.ladders[ladderKey].steps);
+    $('live-rubric').dataset.ladder = ladderKey;
+  }
   setText('live-step', g.phone.levelName);
   setText('live-cost', money(g.cost));
   setText('live-dep', g.deposit ? `Deposit left ${money(g.deposit.left)}` : '');

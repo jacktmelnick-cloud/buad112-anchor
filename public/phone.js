@@ -62,8 +62,7 @@ async function api(path, body) {
 /* ---------- rendering ---------- */
 
 function ladderSteps(s) {
-  const l = rules.ladders;
-  return (s.deposit ? l.phone : l['phone-nodeposit']).steps;
+  return rules.ladders[`phone${s.quiet ? '-quiet' : ''}${s.deposit ? '' : '-nodeposit'}`].steps;
 }
 
 function render(next) {
@@ -355,6 +354,8 @@ async function onStart(event) {
     const body = { studyMinutes: minutes, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
     if (tuition !== null) body.tuitionPerYear = tuition;
     if (deposit) body.deposit = deposit;
+    body.quiet = data.get('quiet') === 'on';
+    try { localStorage.setItem('anchor-quiet', body.quiet ? '1' : '0'); } catch { /* private mode */ }
     const res = await api('/api/start', body);
     if (!res.ok) throw new Error(res.error);
     if (installed()) runEnforcer();
@@ -524,6 +525,7 @@ async function simulateGuard() {
 function wire() {
   $('guard-btn').addEventListener('click', simulateGuard);
   $('sound-btn').addEventListener('click', () => soundOnTap(true));
+  try { $('quiet').checked = localStorage.getItem('anchor-quiet') === '1'; } catch { /* private mode */ }
   $('enforcer-btn').addEventListener('click', runEnforcer);
   $('locked-back').addEventListener('click', closeLocked);
   show('a2hs', window.navigator.standalone === false);

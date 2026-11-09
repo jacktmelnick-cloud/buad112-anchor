@@ -24,7 +24,7 @@ async function post(path, body) {
 }
 
 function steps(s) {
-  return (s.deposit ? rules.ladders.phone : rules.ladders['phone-nodeposit']).steps;
+  return rules.ladders[`phone${s.quiet ? '-quiet' : ''}${s.deposit ? '' : '-nodeposit'}`].steps;
 }
 
 function render(s) {
