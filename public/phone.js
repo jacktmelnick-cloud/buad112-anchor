@@ -364,10 +364,69 @@ async function onStart(event) {
   }
 }
 
+/* ---------- stand-ins for the Shortcut-only effects ---------- */
+// A web page can't touch the flashlight, silent mode, volume, or wallpaper, so the Simulate button
+// shows them on screen instead. On a real app open the Shortcuts do the real thing.
+
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Called inside the tap, before any await: iOS only lets a page talk if speech starts from a gesture. */
+function unlockSpeech() {
+  try {
+    // Play through the silent switch, like a video would (Safari 16.4+).
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    if ('speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+  } catch { /* no speech */ }
+}
+
+function speak(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const line = new SpeechSynthesisUtterance(text);
+    line.volume = 1;
+    speechSynthesis.speak(line);
+  } catch { /* no speech */ }
+}
+
+/** The flashlight, on screen: at most one flash a second; one slow pulse with Reduce Motion on. */
+function flashScreen(times) {
+  const el = $('flash');
+  if (reduceMotion()) {
+    el.dataset.soft = 'true';
+    el.dataset.on = 'true';
+    setTimeout(() => { el.dataset.on = 'false'; }, 700);
+    return;
+  }
+  el.dataset.soft = 'false';
+  let n = 0;
+  const step = () => {
+    el.dataset.on = String(n % 2 === 0);
+    n += 1;
+    if (n < times * 2) setTimeout(step, 500);
+    else el.dataset.on = 'false';
+  };
+  step();
+}
+
+function showShame() {
+  $('shame-img').src = `/api/wallpaper.png?k=${encodeURIComponent(key)}&t=${Date.now()}`;
+  show('shame', true);
+  return new Promise((resolve) => setTimeout(() => { show('shame', false); resolve(); }, 3000));
+}
+
+async function standIns(fx) {
+  if (fx.silentOff) speak('Put the phone down. You are at your anchor.');
+  if (fx.shame) await showShame();
+  if (fx.flash) flashScreen(Math.min(3, fx.flashBlinks || 3));
+}
+
 async function simulateOpen() {
+  unlockSpeech();
   const res = await api('/api/phone/open', { app: 'Instagram' });
   if (!res.ok) return setText('session-error', res.error);
   setText('session-error', '');
+  await standIns(res.data ?? {});
   if (res.data?.gate) { document.querySelector('.presenter').open = false; openGate(res.data); }
 }
 
