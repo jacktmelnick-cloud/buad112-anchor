@@ -54,6 +54,7 @@ const CONTENT_TYPES = Object.freeze({
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json',
   '.json': 'application/json; charset=utf-8',
+  '.wav': 'audio/wav',
 });
 
 const SECURITY_HEADERS = Object.freeze({

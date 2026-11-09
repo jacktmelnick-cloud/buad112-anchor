@@ -1,6 +1,6 @@
 /**
  * Phone mode: what the iOS Shortcut should do to the phone right now. Pure; the Shortcut applies it
- * (Color Filters, Silent Mode, Volume, Brightness, Text Size, Wallpaper, Flashlight, Open URL) and
+ * (Color Filters, Silent Mode, Volume, Brightness, Text Size, Wallpaper, Classic Invert, Open URL) and
  * docs/shortcuts.md shows how.
  *
  * Everything a step switches on stays on while you're inside the zone, on the phone or not, and the
@@ -28,8 +28,11 @@ export const LOUD_VOLUME = 1;
 /** The Enforcer shortcut re-applies everything this often while you're in the zone. */
 export const REAPPLY_SECONDS = 15;
 
-/** Flashlight blinks per app open from the flash step on. */
-export const FLASH_BLINKS = 6;
+/**
+ * Whole-phone flashes per Shortcut run from the flash step on: Classic Invert on, 1 s, off, 1 s, so never
+ * more than one flash a second. The Enforcer runs it every cycle, so it keeps going in every app.
+ */
+export const FLASH_BLINKS = 4;
 
 const at = (list, level) => list[Math.min(level, list.length - 1)];
 const pct = (x) => Math.round(x * 100);

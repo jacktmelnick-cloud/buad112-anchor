@@ -156,6 +156,7 @@ function renderEffects(s) {
   $('gray').dataset.on = String(Boolean(on && fx.grayscale));
   $('dim').dataset.on = String(Boolean(on && fx.dim));
   document.documentElement.style.fontSize = on && fx.bigText ? '175%' : '';
+  keepFlashing(on && fx.flash);
 }
 
 /* ---------- gate ---------- */
@@ -200,7 +201,7 @@ function renderGate() {
   if (fx.dim) on.push('dim');
   if (fx.bigText) on.push('huge text');
   if (fx.shame) on.push('shame wallpaper');
-  if (fx.flash) on.push('flashlight');
+  if (fx.flash) on.push('flashing');
   show('gate-fx', on.length > 0);
   setText('gate-fx', on.length ? `Your phone is now: ${on.join(', ')}. It gets worse.` : '');
   const confess = Boolean(fx.confess);
@@ -365,18 +366,36 @@ async function onStart(event) {
 }
 
 /* ---------- stand-ins for the Shortcut-only effects ---------- */
-// A web page can't touch the flashlight, silent mode, volume, or wallpaper, so the Simulate button
+// A web page can't flash other apps, change silent mode or volume, or set the wallpaper, so the page
 // shows them on screen instead. On a real app open the Shortcuts do the real thing.
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Called inside the tap, before any await: iOS only lets a page talk if speech starts from a gesture. */
-function unlockSpeech() {
+const ALARM_MS = 4000;
+let alarm = null;
+let alarmStop = null;
+
+/**
+ * Called inside the tap, before any await: iOS only plays sound that starts from a tap. When the Loud
+ * step is already on, the alarm and the voice start right here; otherwise the audio is just unlocked.
+ */
+function soundOnTap() {
   try {
-    // Play through the silent switch, like a video would (Safari 16.4+).
+    // Play through the silent switch, like a video does (Safari 16.4+).
     if (navigator.audioSession) navigator.audioSession.type = 'playback';
-    if ('speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance(''));
-  } catch { /* no speech */ }
+    if (!alarm) {
+      alarm = new Audio('alarm.wav');
+      alarm.loop = true;
+      alarm.preload = 'auto';
+    }
+    const loud = Boolean(snap?.status === 'running' && snap?.phoneFx?.silentOff);
+    alarm.muted = !loud;
+    alarm.currentTime = 0;
+    alarm.play().catch(() => {});
+    clearTimeout(alarmStop);
+    alarmStop = setTimeout(() => alarm.pause(), loud ? ALARM_MS : 50);
+    if (loud) speak('Put the phone down. You are at your anchor.');
+  } catch { /* no sound */ }
 }
 
 function speak(text) {
@@ -389,7 +408,21 @@ function speak(text) {
   } catch { /* no speech */ }
 }
 
-/** The flashlight, on screen: at most one flash a second; one slow pulse with Reduce Motion on. */
+/** While the Flashing step is on, a burst of flashes every few seconds, for as long as the page is open. */
+const FLASH_EVERY_MS = 5000;
+let flashLoop = null;
+function keepFlashing(on) {
+  if (on && !flashLoop) {
+    flashScreen(2);
+    flashLoop = setInterval(() => flashScreen(2), FLASH_EVERY_MS);
+  } else if (!on && flashLoop) {
+    clearInterval(flashLoop);
+    flashLoop = null;
+    $('flash').dataset.on = 'false';
+  }
+}
+
+/** One burst of flashes: at most one flash a second; one slow pulse with Reduce Motion on. */
 function flashScreen(times) {
   const el = $('flash');
   if (reduceMotion()) {
@@ -416,13 +449,12 @@ function showShame() {
 }
 
 async function standIns(fx) {
-  if (fx.silentOff) speak('Put the phone down. You are at your anchor.');
   if (fx.shame) await showShame();
-  if (fx.flash) flashScreen(Math.min(3, fx.flashBlinks || 3));
+  if (fx.flash) flashScreen(3);
 }
 
 async function simulateOpen() {
-  unlockSpeech();
+  soundOnTap();
   const res = await api('/api/phone/open', { app: 'Instagram' });
   if (!res.ok) return setText('session-error', res.error);
   setText('session-error', '');

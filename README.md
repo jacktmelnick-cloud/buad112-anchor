@@ -24,7 +24,7 @@ Anchor punishes your **phone**. Inside a 50 m zone around your anchor, opening a
 | 1:00 | Receipt | Tuition burned, live on the gate | 25 s | 50 s |
 | 1:15 | Huge text | Text size maxed | 30 s | 40 s |
 | 1:30 | Shame wallpaper | Wallpaper shows what you burned | 40 s | 30 s |
-| 1:45 | Flashlight | Blinks on every app open | 45 s | 25 s |
+| 1:45 | Flashing | The whole phone flashes in every app, over and over | 45 s | 25 s |
 | 2:00 | Confession | Type the phrase to pass the gate | 50 s | 20 s |
 | 2:15 | Deposit | Deposit drains (only if you put one down) | 60 s | 15 s |
 

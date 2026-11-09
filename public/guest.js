@@ -202,7 +202,7 @@ function renderGate() {
   if (reached('dim')) on.push('dim');
   if (reached('text')) on.push('huge text');
   if (reached('shame')) on.push('shame wallpaper');
-  if (reached('flash')) on.push('flashlight');
+  if (reached('flash')) on.push('flashing');
   show('sb-fx', on.length > 0);
   setText('sb-fx', on.length ? `Your phone is now: ${on.join(', ')}. It gets worse.` : '');
   const confess = needsConfession();

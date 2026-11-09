@@ -84,7 +84,7 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .install__done { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; }
 .install__done input { width: 22px; height: 22px; flex: none; }
 
-/* Stand-ins for what only the Shortcuts can do (flashlight, sound, wallpaper), for the Simulate buttons */
+/* Stand-ins for what only the Shortcuts can do (flashing, sound, wallpaper), for the Simulate buttons */
 .flash { position: fixed; inset: 0; z-index: 60; background: #fff; opacity: 0; pointer-events: none; }
 .flash[data-on="true"] { opacity: 1; }
 .flash[data-soft="true"] { transition: opacity 0.5s; }

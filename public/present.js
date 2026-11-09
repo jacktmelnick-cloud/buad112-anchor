@@ -84,7 +84,7 @@ function renderChips(s) {
     if (fx.dim) chips.push(['DIM']);
     if (fx.bigText) chips.push(['HUGE TEXT']);
     if (fx.shame) chips.push(['SHAME WALLPAPER']);
-    if (fx.flash) chips.push(['FLASHLIGHT']);
+    if (fx.flash) chips.push(['FLASHING']);
     if (fx.confess) chips.push(['CONFESSION OWED']);
   }
   const ul = $('chips');

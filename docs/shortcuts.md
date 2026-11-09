@@ -21,7 +21,7 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 | Shortcut | What it does |
 |---|---|
 | Anchor Config | Holds your base URL and key |
-| Anchor Apply | Applies what the server says (grey, loud, dim, text, wallpaper, flashlight) |
+| Anchor Apply | Applies what the server says (grey, loud, dim, text, wallpaper, flashing) |
 | Anchor Restore | Puts the phone back to normal |
 | Anchor Enforcer | Re-applies everything every 15 s while you're at the anchor |
 | Anchor App Opened | Called by automation 1 |
@@ -47,15 +47,15 @@ Input: the `data` dictionary.
 4. **Set Brightness** to `brightnessPercent` %.
 5. **Set Text Size**: Largest if `bigText`, otherwise Default.
 6. **If** `shame`: Run Anchor Config → Get Contents of URL `[base]/api/wallpaper.png` → **Set Wallpaper** (Lock and Home Screen, **Show Preview off**).
-7. **If** `flash`: Repeat `flashBlinks` times: Set Flashlight On, Wait 1 s, Set Flashlight Off, Wait 1 s.
+7. **If** `flash`: Repeat `flashBlinks` times: **Set Classic Invert** On, Wait 1 s, Set Classic Invert Off, Wait 1 s. This flips the colours of the whole phone, in whatever app is open. Keep the Waits: never faster than one flash a second. (Search "Invert" in the action list; if Classic Invert is missing, use Set Smart Invert.)
 
 ## 3. Anchor Restore
 
-Color Filters Off → Set Brightness 60% → Set Text Size Default → Set Wallpaper to your normal wallpaper (Show Preview off).
+Color Filters Off → Set Classic Invert Off → Set Brightness 60% → Set Text Size Default → Set Wallpaper to your normal wallpaper (Show Preview off).
 
 ## 4. Anchor Enforcer
 
-Run Anchor Config → **Repeat 500 times**: Get Contents of URL `[base]/api/phone/now` → Get Dictionary Value `data` → **If** `active` is false: Run Anchor Restore, **Stop This Shortcut** → Set Dictionary Value `flashBlinks` = 0 in `data` → Run Anchor Apply with it → **Wait** `reapplySeconds` s.
+Run Anchor Config → **Repeat 500 times**: Get Contents of URL `[base]/api/phone/now` → Get Dictionary Value `data` → **If** `active` is false: Run Anchor Restore, **Stop This Shortcut** → Run Anchor Apply with `data` → **Wait** `reapplySeconds` s. From the Flashing step on, each cycle flashes the whole phone again, so it keeps flashing in every app until you leave.
 The Anchor page starts it when you drop the anchor, once you've ticked "Shortcuts are set up".
 
 ## 5. Anchor App Opened
@@ -108,6 +108,6 @@ Shortcuts, **Automation** tab, **+**. For each one: **Run Immediately** on, **No
 1. Projector shows the Mac page with the QR. Scan it; the phone page opens (or launch the Home Screen app).
 2. Set 5 minutes, tuition, a play-money deposit. **Drop anchor & start**. Presenter: speed **5x**.
 3. Open Instagram: bounced to the gate. Wait.
-4. Keep opening it. At 5x a step lands every 3 s: grey, **loud**, dim, tuition receipt, **huge text**, **shame wallpaper**, **flashlight**, the confession, the deposit draining.
+4. Keep opening it. At 5x a step lands every 3 s: grey, **loud**, dim, tuition receipt, **huge text**, **shame wallpaper**, **flashing**, the confession, the deposit draining.
 5. Open Settings: the locked screen says how far you have to walk.
 6. Walk away or drag Simulated distance past 50 m. Effects lift, **Stop** unlocks, show the grade.
