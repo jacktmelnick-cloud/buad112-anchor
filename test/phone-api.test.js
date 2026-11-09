@@ -11,6 +11,7 @@ import { CONFESSION_PHRASE } from '../src/config.js';
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const T0 = 1_700_000_000_000;
 const TOKEN = 'test-token-123';
+const GUEST = 'guest-token-12';
 const ANCHOR = { lat: 34.0224, lng: -118.2851 };
 const FAR = { lat: 34.0254, lng: -118.2851 }; // ~330 m north
 
@@ -62,7 +63,7 @@ async function startPhoneSession(extra = {}) {
 
 describe('phone mode over the tunnel', () => {
   before(async () => {
-    server = createHttpServer({ app: { phoneNow: () => app.phoneNow(), ...proxy() }, publicDir: PUBLIC_DIR, token: TOKEN });
+    server = createHttpServer({ app: { phoneNow: () => app.phoneNow(), ...proxy() }, publicDir: PUBLIC_DIR, token: TOKEN, guestToken: GUEST });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     port = server.address().port;
   });
@@ -77,6 +78,35 @@ describe('phone mode over the tunnel', () => {
     assert.equal((await remote('POST', '/api/phone/open', { key: null, body: {} })).status, 403);
     assert.equal((await remote('GET', '/', { key: null })).status, 200);
     assert.equal((await remote('GET', '/api/state', { key: 'wrong-token-12' })).status, 403);
+  });
+
+  test('a guest can watch but not touch', async () => {
+    await startPhoneSession({ deposit: 20 });
+    await open();
+    advance(20_000);
+    const view = await remote('GET', '/api/guest', { key: GUEST });
+    assert.equal(view.status, 200);
+    assert.equal(view.json.data.status, 'running');
+    assert.equal(view.json.data.phone.levelId, 'gray');
+    assert.equal(view.json.data.location, undefined);
+    assert.equal((await remote('GET', '/api/rules', { key: GUEST })).json.data.gateSeconds.length, 10);
+    assert.equal((await remote('GET', '/', { key: GUEST })).status, 200);
+    for (const [method, route] of [
+      ['POST', '/api/phone/open'],
+      ['POST', '/api/demo'],
+      ['POST', '/api/stop'],
+      ['POST', '/api/gate'],
+      ['GET', '/api/state'],
+      ['GET', '/events'],
+      ['GET', '/api/phone/now'],
+      ['GET', '/api/wallpaper.png'],
+      ['GET', '/api/connect'],
+    ]) {
+      const r = await remote(method, route, { key: GUEST, body: method === 'POST' ? { simulatedM: 400 } : undefined });
+      assert.equal(r.status, 403, `${method} ${route}`);
+    }
+    assert.equal(app.state().location.simulated, false);
+    assert.equal(app.state().status, 'running');
   });
 
   test('the pairing code is only for the Mac', async () => {

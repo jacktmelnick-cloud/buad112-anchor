@@ -34,30 +34,37 @@ function tunnelCommand(port) {
 /** The page the phone opens, with its key. */
 export const phoneUrl = (base, token) => `${base}/phone.html?k=${encodeURIComponent(token)}`;
 
+/** The page classmates open from the projector: watch the session, try a sandbox. */
+export const guestUrl = (base, guestToken) => `${base}/guest.html?k=${encodeURIComponent(guestToken)}`;
+
 /**
- * @param {{ port: number, token: string, log: ReturnType<typeof import('./log.js').createLogger> }} deps
+ * @param {{ port: number, token: string, guestToken: string, log: ReturnType<typeof import('./log.js').createLogger> }} deps
  */
-export function startTunnel({ port, token, log }) {
+export function startTunnel({ port, token, guestToken, log }) {
   let base = null;
   let qrSvg = null;
+  let guestQrSvg = null;
   let error = null;
   const command = tunnelCommand(port);
   if (command.error) {
     error = command.error;
     log.error(`${error} The phone can't reach Anchor until it is.`);
-    return { connect: () => ({ url: null, base: null, token, qrSvg: null, error }), stop() {} };
+    return { connect: () => ({ url: null, base: null, token, qrSvg: null, guestUrl: null, guestQrSvg: null, error }), stop() {} };
   }
 
   const child = spawn(command.bin, command.args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const found = (url) => {
     base = url;
-    QRCode.toString(phoneUrl(base, token), { type: 'svg', margin: 1 })
-      .then((svg) => {
-        qrSvg = svg;
+    const qr = (link) => QRCode.toString(link, { type: 'svg', margin: 1 });
+    Promise.all([qr(phoneUrl(base, token)), qr(guestUrl(base, guestToken))])
+      .then(([owner, guest]) => {
+        qrSvg = owner;
+        guestQrSvg = guest;
       })
-      .catch((e) => log.error('Could not draw the pairing QR code', e));
+      .catch((e) => log.error('Could not draw the pairing QR codes', e));
     log.info(`Phone link: ${phoneUrl(base, token)}`);
     log.info(`Shortcuts base URL: ${base}   key: ${token}`);
+    log.info(`Guest link (projector): ${guestUrl(base, guestToken)}`);
   };
   const scan = (chunk) => {
     const match = base ? null : String(chunk).match(TUNNEL_URL);
@@ -75,7 +82,15 @@ export function startTunnel({ port, token, log }) {
   });
 
   return {
-    connect: () => ({ url: base && phoneUrl(base, token), base, token, qrSvg, error }),
+    connect: () => ({
+      url: base && phoneUrl(base, token),
+      base,
+      token,
+      qrSvg,
+      guestUrl: base && guestUrl(base, guestToken),
+      guestQrSvg,
+      error,
+    }),
     stop: () => child.kill(),
   };
 }

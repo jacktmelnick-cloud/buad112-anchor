@@ -4,6 +4,7 @@
  * same-origin JSON posts, so another website cannot drive the session.
  * Phone mode: with a token set, the page is also served through a tunnel, and any request carrying
  * the token (the `x-anchor-key` header or `?k=`) may use the API: the phone page and its iOS Shortcuts.
+ * A guest token (classmates scanning the projector QR) can only read a trimmed state; it changes nothing.
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -21,6 +22,7 @@ import {
 import { createLogger } from './log.js';
 import { LADDER, LADDERS } from './ladder.js';
 import { DEPOSIT_MAX } from './deposit.js';
+import { GATE_SECONDS, PASS_SECONDS } from './phone.js';
 import { LEVEL_MS, RADIUS_M, CONFESSION_PHRASE, CLASS_MINUTES_PER_YEAR, LIMITS } from './config.js';
 
 const RULES = Object.freeze({
@@ -31,6 +33,8 @@ const RULES = Object.freeze({
   classMinutesPerYear: CLASS_MINUTES_PER_YEAR,
   maxTuitionPerYear: LIMITS.maxTuitionPerYear,
   depositMax: DEPOSIT_MAX,
+  gateSeconds: GATE_SECONDS,
+  passSeconds: PASS_SECONDS,
   ladders: Object.fromEntries(
     Object.entries(LADDERS).map(([name, ladder]) => [name, { steps: ladder.steps, levelMs: ladder.levelMs }]),
   ),
@@ -167,12 +171,43 @@ function serveStatic(pathname, res, publicDir) {
 }
 
 /** Constant-time token check. */
-function hasKey(req, url, token) {
+function matches(given, token) {
   if (!token) return false;
-  const given = String(req.headers['x-anchor-key'] ?? url.searchParams.get('k') ?? '');
   const a = Buffer.from(given);
   const b = Buffer.from(token);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/** 'owner' (the presenter's phone, Shortcuts), 'guest' (read-only), or null. */
+function keyRole(req, url, token, guestToken) {
+  const given = String(req.headers['x-anchor-key'] ?? url.searchParams.get('k') ?? '');
+  if (matches(given, token)) return 'owner';
+  if (matches(given, guestToken)) return 'guest';
+  return null;
+}
+
+/** What a guest sees of the live session: the show, not the controls or the location. */
+export function guestView(snap) {
+  return {
+    status: snap.status,
+    mode: snap.mode,
+    demoSpeed: snap.demoSpeed,
+    courseName: snap.config?.courseName ?? null,
+    study: { remainingMs: snap.study.remainingMs, targetMs: snap.study.targetMs },
+    phone: {
+      onPhone: snap.phone.onPhone,
+      totalMs: snap.phone.totalMs,
+      pickups: snap.phone.pickups,
+      level: snap.phone.level,
+      levelId: snap.phone.levelId,
+      levelName: snap.phone.levelName,
+      maxLevel: snap.phone.maxLevel,
+    },
+    cost: snap.cost,
+    away: snap.away,
+    deposit: snap.deposit ? { total: snap.deposit.total, left: snap.deposit.left } : null,
+    grade: snap.summary?.grade ?? null,
+  };
 }
 
 /**
@@ -181,11 +216,19 @@ function hasKey(req, url, token) {
  *   publicDir: string,
  *   log?: ReturnType<typeof createLogger>,
  *   token?: string | null,
+ *   guestToken?: string | null,
  *   connect?: () => { url: string | null, qrSvg: string | null },
  * }} deps
  * @returns {http.Server}
  */
-export function createHttpServer({ app, publicDir, log = createLogger(), token = null, connect = () => ({ url: null, qrSvg: null }) }) {
+export function createHttpServer({
+  app,
+  publicDir,
+  log = createLogger(),
+  token = null,
+  guestToken = null,
+  connect = () => ({ url: null, qrSvg: null }),
+}) {
   const root = path.resolve(publicDir);
   const routes = postRoutes(app);
   const streams = new Set();
@@ -194,9 +237,16 @@ export function createHttpServer({ app, publicDir, log = createLogger(), token =
     const url = new URL(req.url ?? '/', `http://localhost:${port}`);
     const { pathname } = url;
     const local = isLoopbackHost(req.headers.host, port);
-    const keyed = hasKey(req, url, token);
+    const role = keyRole(req, url, token, guestToken);
+    const keyed = role === 'owner';
     // Through the tunnel the page itself is public (it holds nothing); everything live needs the token.
     const isPage = req.method === 'GET' && !pathname.startsWith('/api/') && pathname !== '/events';
+    if (role === 'guest' && !isPage) {
+      // Guests poll instead of streaming, so a whole class can't use up the live-update slots.
+      if (req.method === 'GET' && pathname === '/api/rules') return success(res, RULES);
+      if (req.method === 'GET' && pathname === '/api/guest') return success(res, guestView(app.state()));
+      return failure(res, 403, 'Guests can watch, not touch.');
+    }
     if (!local && !keyed && !(token && isPage)) return failure(res, 403, 'Anchor only answers on localhost.');
 
     if (req.method === 'GET' && pathname === '/api/connect') {

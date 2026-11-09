@@ -6,6 +6,7 @@
  *   ANCHOR_SILENT=1    skip sound, speech, and volume changes (for testing)
  *   ANCHOR_OVERLAY=0   skip the Mac-wide overlay; the page draws effects inside the tab instead
  *   ANCHOR_TOKEN=xyz   the phone's key (default: made once and kept in data/token.txt)
+ *                      Guests get a read-only key in data/guest-token.txt; delete either file for a new one.
  *   ANCHOR_TUNNEL=0    don't start a tunnel
  *   NGROK_DOMAIN=x.ngrok-free.app  use your free ngrok static domain: the phone link never changes
  *                      (otherwise a Cloudflare quick tunnel, whose address changes every start)
@@ -47,9 +48,9 @@ function writeSounds() {
   return { tickPath, sirenPath };
 }
 
-/** The phone's key survives restarts, so the Home Screen app and the Shortcuts keep working. */
-function loadToken() {
-  const file = path.join(dataDir, 'token.txt');
+/** Keys survive restarts, so the Home Screen app, the Shortcuts, and printed QR codes keep working. */
+function loadToken(name) {
+  const file = path.join(dataDir, name);
   try {
     const saved = fs.readFileSync(file, 'utf8').trim();
     if (/^[\w-]{12,}$/.test(saved)) return saved;
@@ -91,13 +92,15 @@ function main() {
   });
   if (useOverlay) overlay.start();
 
-  const token = process.env.ANCHOR_TOKEN || loadToken();
-  const tunnel = process.env.ANCHOR_TUNNEL === '0' ? null : startTunnel({ port, token, log });
+  const token = process.env.ANCHOR_TOKEN || loadToken('token.txt');
+  const guestToken = loadToken('guest-token.txt');
+  const tunnel = process.env.ANCHOR_TUNNEL === '0' ? null : startTunnel({ port, token, guestToken, log });
   const server = createHttpServer({
     app,
     publicDir: path.join(root, 'public'),
     log,
     token,
+    guestToken,
     connect: () => tunnel?.connect() ?? { url: null, qrSvg: null, error: 'Tunnel is off (ANCHOR_TUNNEL=0).' },
   });
   const loop = setInterval(() => app.step(), LOOP_MS);
