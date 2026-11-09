@@ -165,7 +165,19 @@ function serveEvents(req, res, app, streams) {
   return undefined;
 }
 
-function serveStatic(pathname, res, publicDir, home = 'index.html') {
+/**
+ * A single `bytes=start-end` range, clamped to the file, or null for the whole file.
+ * iPhone Safari won't play audio from a server that can't answer range requests.
+ */
+export function parseRange(header, size) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(String(header ?? '').trim());
+  if (!match || (match[1] === '' && match[2] === '')) return null;
+  const start = match[1] === '' ? Math.max(0, size - Number(match[2])) : Number(match[1]);
+  const end = match[1] === '' || match[2] === '' ? size - 1 : Math.min(size - 1, Number(match[2]));
+  return start <= end && start < size ? { start, end } : { start: size, end: size - 1 };
+}
+
+function serveStatic(pathname, res, publicDir, home = 'index.html', rangeHeader = undefined) {
   const relative = pathname === '/' ? home : pathname.slice(1);
   const resolved = path.resolve(publicDir, relative);
   const insidePublic = resolved.startsWith(publicDir + path.sep);
@@ -173,8 +185,18 @@ function serveStatic(pathname, res, publicDir, home = 'index.html') {
   if (!insidePublic || !type || relative.includes('\0')) return failure(res, 404, 'Not found.');
   fs.readFile(resolved, (error, data) => {
     if (error) return failure(res, 404, 'Not found.');
-    res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': type });
-    return res.end(data);
+    const headers = { ...SECURITY_HEADERS, 'content-type': type, 'accept-ranges': 'bytes' };
+    const range = parseRange(rangeHeader, data.length);
+    if (!range) {
+      res.writeHead(200, headers);
+      return res.end(data);
+    }
+    if (range.start > range.end) {
+      res.writeHead(416, { ...headers, 'content-range': `bytes */${data.length}` });
+      return res.end();
+    }
+    res.writeHead(206, { ...headers, 'content-range': `bytes ${range.start}-${range.end}/${data.length}` });
+    return res.end(data.subarray(range.start, range.end + 1));
   });
   return undefined;
 }
@@ -271,7 +293,7 @@ export function createHttpServer({
     if (req.method === 'GET' && pathname === '/api/state') return success(res, app.state());
     if (req.method === 'GET' && pathname === '/api/rules') return success(res, RULES);
     if (req.method === 'GET' && pathname === '/events') return serveEvents(req, res, app, streams);
-    if (req.method === 'GET') return serveStatic(pathname, res, root, home);
+    if (req.method === 'GET') return serveStatic(pathname, res, root, home, req.headers.range);
     if (req.method !== 'POST') return failure(res, 405, 'Method not allowed.');
 
     // A keyed request (phone page, Shortcuts) proved itself; Shortcuts send no Origin at all.

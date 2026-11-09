@@ -4,7 +4,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createApp } from '../src/app.js';
-import { createHttpServer } from '../src/server.js';
+import { createHttpServer, parseRange } from '../src/server.js';
 import { GATE_SECONDS, PASS_SECONDS, DIM_BRIGHTNESS } from '../src/phone.js';
 import { CONFESSION_PHRASE } from '../src/config.js';
 
@@ -128,6 +128,30 @@ describe('phone mode over the tunnel', () => {
     assert.equal(newest.res.statusCode, 200);
     await firstEnded;
     [...streams, newest].forEach(({ req }) => req.destroy());
+  });
+
+  test('static files answer range requests, which iPhone Safari needs for audio', async () => {
+    const whole = await remote('GET', '/alarm.wav', { key: null });
+    assert.equal(whole.status, 200);
+    const part = await new Promise((resolve, reject) => {
+      const req = http.request(
+        { host: '127.0.0.1', port, path: '/alarm.wav', headers: { host: 'demo.trycloudflare.com', range: 'bytes=0-1' } },
+        (res) => {
+          const chunks = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+    assert.equal(part.status, 206);
+    assert.equal(part.body.toString('ascii'), 'RI');
+    assert.match(part.headers['content-range'], /^bytes 0-1\/\d+$/);
+    assert.deepEqual(parseRange('bytes=10-', 100), { start: 10, end: 99 });
+    assert.deepEqual(parseRange('bytes=-10', 100), { start: 90, end: 99 });
+    assert.deepEqual(parseRange('bytes=0-999', 100), { start: 0, end: 99 });
+    assert.equal(parseRange(undefined, 100), null);
   });
 
   test('the pairing code is only for the Mac', async () => {

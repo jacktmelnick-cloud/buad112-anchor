@@ -432,7 +432,8 @@ let tone = null;
 function playTone(note) {
   try {
     tone = tone ?? new (window.AudioContext || window.webkitAudioContext)();
-    tone.resume().catch(() => {});
+    // The context starts a moment after the tap, so report its state once resume settles.
+    tone.resume().then(() => note(`tone ${tone.state}`), (err) => note(`tone blocked: ${err.name}`));
     const osc = tone.createOscillator();
     const gain = tone.createGain();
     const t = tone.currentTime;
@@ -445,7 +446,6 @@ function playTone(note) {
     osc.connect(gain).connect(tone.destination);
     osc.start(t);
     osc.stop(t + ALARM_MS / 1000);
-    note(`tone ${tone.state}`);
   } catch (err) { note(`tone failed: ${err.name}`); }
 }
 
