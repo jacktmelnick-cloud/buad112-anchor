@@ -8,8 +8,9 @@
  *   ANCHOR_TOKEN=xyz   the phone's key (default: made once and kept in data/token.txt)
  *                      Guests get a read-only key in data/guest-token.txt; delete either file for a new one.
  *   ANCHOR_TUNNEL=0    don't start a tunnel
- *   NGROK_DOMAIN=x.ngrok-free.app  use your free ngrok static domain: the phone link never changes
- *                      (otherwise a Cloudflare quick tunnel, whose address changes every start)
+ *   NGROK_AUTHTOKEN=… NGROK_DOMAIN=x.ngrok-free.app  your free ngrok account: the phone link never
+ *                      changes. Needed once; remembered in data/ngrok.json. (Otherwise a Cloudflare quick
+ *                      tunnel, if cloudflared is installed, whose address changes every start.)
  *   ANCHOR_DATA=dir    where the session file is saved (default ./data)
  */
 import fs from 'node:fs';
@@ -94,7 +95,7 @@ function main() {
 
   const token = process.env.ANCHOR_TOKEN || loadToken('token.txt');
   const guestToken = loadToken('guest-token.txt');
-  const tunnel = process.env.ANCHOR_TUNNEL === '0' ? null : startTunnel({ port, token, guestToken, log });
+  const tunnel = process.env.ANCHOR_TUNNEL === '0' ? null : startTunnel({ port, token, guestToken, dataDir, log });
   const server = createHttpServer({
     app,
     publicDir: path.join(root, 'public'),

@@ -6,12 +6,12 @@ Anchor punishes your **phone**. Inside a 50 m zone around your anchor, opening a
 
 **Setup (recommended: ngrok static domain)**
 
-1. `brew install ngrok`, make a free account at ngrok.com, claim your free static domain, then `ngrok config add-authtoken YOUR_TOKEN`.
-2. `npm install && NGROK_DOMAIN=your-name.ngrok-free.app npm start`. The URL never changes, so the Home Screen app and the Shortcuts never need updating. The key also survives restarts.
+1. Make a free account at ngrok.com. Copy your **authtoken** (dashboard, "Your Authtoken") and claim your free **static domain** (dashboard, Domains). Nothing to install: ngrok comes with `npm install`.
+2. First time: `npm install && NGROK_AUTHTOKEN=your-token NGROK_DOMAIN=your-name.ngrok-free.app npm start`. Both are remembered in `data/ngrok.json` (not committed), so after that it's just `npm start`. The URL never changes, so the Home Screen app and the Shortcuts never need updating. The key also survives restarts.
 3. Open http://localhost:5112 on the Mac and scan the QR code with your iPhone camera. Add the page to your Home Screen.
 4. Set up the Shortcuts: [docs/shortcuts.md](docs/shortcuts.md). Without them, the phone page has a Presenter panel with "Simulate opening Instagram" and "Simulate opening Settings".
 
-**No account? Cloudflare fallback:** `brew install cloudflared` (or download the macOS binary from https://github.com/cloudflare/cloudflared/releases to `~/.local/bin/cloudflared`), then `npm install && npm start` without `NGROK_DOMAIN`. The URL changes each run, so update "Anchor Config" before every demo.
+**No account? Cloudflare fallback:** `brew install cloudflared` (or download the macOS binary from https://github.com/cloudflare/cloudflared/releases to `~/.local/bin/cloudflared`), then `npm install && npm start` with no ngrok settings saved. The URL changes each run, so update "Anchor Config" before every demo.
 
 **Phone ladder** (one step per 15 s on the phone). Effects stay on until you leave the zone.
 

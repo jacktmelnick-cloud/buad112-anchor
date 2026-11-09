@@ -18,6 +18,7 @@
     "playwright": "^1.60.0"
   },
   "dependencies": {
+    "@ngrok/ngrok": "^1.7.0",
     "qrcode": "^1.5.4"
   }
 }
