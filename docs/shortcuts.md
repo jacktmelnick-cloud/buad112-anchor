@@ -75,7 +75,6 @@ Run Anchor Config → **Get Current Location** → POST `[base]/api/phone/close`
 ## Sharing them (builder only)
 
 For each of the 8 shortcuts: long-press it, **Share**, **Copy iCloud Link**. Paste the links into `public/shortcuts.json` and commit. The Anchor page's setup card turns each one into an **Add** button.
-Check **Settings, Apps, Shortcuts, Advanced, Allow Running Scripts** if Apply is refused.
 
 ## 9. The 4 automations (everyone, about 2 min)
 
