@@ -22,7 +22,7 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 | Anchor Config | Holds your base URL and key |
 | Anchor Apply | Applies what the server says (grey, loud, dim, text, flashing) |
 | Anchor Restore | Puts the phone back to normal |
-| Anchor Enforcer | Re-applies everything every 15 s while you're at the anchor |
+| Anchor Enforcer | Re-applies everything every 15 s and reports where you are, so walking away is noticed even with the phone in a pocket |
 | Anchor App Opened | Called by automation 1 |
 | Anchor App Closed | Called by automation 2 |
 | Anchor Guard | Called by automation 3 (Settings) |
@@ -53,7 +53,7 @@ Color Filters Off → Set Classic Invert Off → Set Brightness 60% → Set Text
 
 ## 4. Anchor Enforcer
 
-Run Anchor Config → **Repeat 500 times**: Get Contents of URL `[base]/api/phone/now` → Get Dictionary Value `data` → **If** `active` is false: Run Anchor Restore, **Stop This Shortcut** → Run Anchor Apply with `data` → **Wait** `reapplySeconds` s. From the Flashing step on, each cycle flashes the whole phone again, so it keeps flashing in every app until you leave.
+Run Anchor Config → **Repeat 500 times**: **Get Current Location** → Get Details of Locations (Latitude, Longitude) → Get Contents of URL `[base]/api/phone/where?k=[key]`, **POST**, JSON body `lat`, `lng` (Numbers) → Get Dictionary Value `data` → **If** `active` is false: Run Anchor Restore, **Stop This Shortcut** → Run Anchor Apply with `data` → **Wait** `reapplySeconds` s. From the Flashing step on, each cycle flashes the whole phone again, so it keeps flashing in every app until you leave.
 The Anchor page starts it when you drop the anchor, once you've ticked "Shortcuts are set up".
 
 ## 5. Anchor App Opened

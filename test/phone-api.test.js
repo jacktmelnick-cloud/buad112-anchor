@@ -168,6 +168,21 @@ describe('phone mode over the tunnel', () => {
     assert.equal(app.phoneNow().flash, true);
   });
 
+  test('the Enforcer reporting where you are lifts everything once you walk away', async () => {
+    await startPhoneSession();
+    await open();
+    advance(50_000);
+    await close();
+    let fx = (await remote('POST', '/api/phone/where', { body: { ...ANCHOR, accuracy: 10 } })).json.data;
+    assert.equal(fx.active, true);
+    assert.equal(fx.grayscale, true);
+    assert.equal(app.state().phone.onPhone, false);
+    fx = (await remote('POST', '/api/phone/where', { body: { ...FAR, accuracy: 10 } })).json.data;
+    assert.equal(fx.active, false);
+    assert.equal(fx.grayscale, false);
+    assert.equal(app.state().canStop, true);
+  });
+
   test('the pairing code is only for the Mac', async () => {
     assert.equal((await remote('GET', '/api/connect')).status, 403);
   });
@@ -310,5 +325,6 @@ function proxy() {
   out.phoneClosed = (e) => app.phoneClosed(e);
   out.passGate = (t) => app.passGate(t);
   out.phoneGuarded = (e) => app.phoneGuarded(e);
+  out.phoneWhere = (e) => app.phoneWhere(e);
   return out;
 }

@@ -132,6 +132,7 @@ function postRoutes(app) {
     '/api/phone/open': validated(parsePhoneEvent, (event) => app.phoneOpened(event)),
     '/api/phone/close': validated(parsePhoneEvent, (event) => app.phoneClosed(event)),
     '/api/phone/guard': validated(parsePhoneEvent, (event) => app.phoneGuarded(event)),
+    '/api/phone/where': validated(parsePhoneEvent, (event) => app.phoneWhere(event)),
     '/api/gate': validated(parseGatePass, (text) => app.passGate(text)),
     '/api/stop': () => app.stop(),
     '/api/reset': () => app.reset(),

@@ -150,6 +150,12 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
       return ok(guardEffects(this.phoneNow()));
     },
 
+    /** The Enforcer, every cycle: where you are now, so walking away is noticed with the phone in a pocket. */
+    phoneWhere({ fix }) {
+      if (fix) this.location(fix);
+      return ok(this.phoneNow());
+    },
+
 
     /** The gate page's Continue button: confession if it's owed, then a pass that grows shorter every step. */
     passGate(text) {
