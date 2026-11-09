@@ -8,7 +8,9 @@ You need an iPhone on the **newest iOS**, and the Mac running `npm start`. The A
 
 1. Settings, Accessibility, Display & Text Size, Color Filters: choose **Grayscale**, leave Color Filters **OFF**.
 2. Open Shortcuts, add an action, search "Silent". If **Set Silent Mode** exists, great. If not, skip that action below; Set Volume still makes media loud.
-3. Remove the loopholes: Settings, Control Center, remove **Text Size** and **Color Filters** / Accessibility Shortcut tiles. Settings, Accessibility, Accessibility Shortcut: turn everything **off** (triple-click).
+3. Remove the loopholes:
+   - Open **Control Center** (swipe down from the top-right corner) and **press and hold** an empty spot until the icons jiggle (or tap **+** top-left). Tap **–** on **Text Size** (AA), **Accessibility Shortcuts**, **Color Filters**, and **Dark Mode** if they're there. Tap empty space to finish. (Older iOS: Settings, Control Center.)
+   - Settings, Accessibility, **Accessibility Shortcut** (near the bottom): uncheck everything, so triple-click can't undo grayscale.
 4. Save a normal wallpaper you like to your Photos, so "Anchor Restore" can put it back.
 5. Scan the QR with the camera, open the page, Share, **Add to Home Screen**. The key comes from `?k=` in the URL you saved it from.
 
