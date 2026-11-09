@@ -1,5 +1,33 @@
 # Anchor
 
+## Phone prototype (BUAD 112 demo)
+
+Anchor punishes your **phone**. Inside a 50 m zone around your anchor, opening a distracting app (via iOS Shortcuts) bounces you to Anchor's gate page and makes you wait, then greys and dims the phone, shows tuition burned, demands a typed confession, and drains a deposit.
+
+**Setup**
+
+1. Install the tunnel: `brew install cloudflared`, or download the macOS binary from https://github.com/cloudflare/cloudflared/releases and put it at `~/.local/bin/cloudflared`.
+2. `npm install && npm start`
+3. Open http://localhost:5112 on the Mac, then scan the QR code with your iPhone camera.
+4. Set up the Shortcuts: [docs/shortcuts.md](docs/shortcuts.md). Without them, the phone page has a Presenter panel with "Simulate opening Instagram".
+
+**Phone ladder** (one step per 15 s on the phone)
+
+| On phone | Step | What happens | Gate wait | Pass after |
+|---|---|---|---|---|
+| 0:00 | Gate | Opening an app bounces you to Anchor | 10 s | 90 s |
+| 0:15 | Grayscale | The phone goes grey | 15 s | 75 s |
+| 0:30 | Dim | Brightness drops to 15% | 20 s | 60 s |
+| 0:45 | Receipt | Tuition burned, live on the gate | 30 s | 45 s |
+| 1:00 | Confession | Type the phrase to pass the gate | 40 s | 30 s |
+| 1:15 | Deposit | Deposit drains (only if you put one down) | 60 s | 15 s |
+
+The Mac effects (sound, speech, overlay) are now opt-in: start with `ANCHOR_MAC=1 npm start`.
+
+---
+
+## Mac mode (original MVP)
+
 A study timer you can't quietly quit. BUAD112 MVP.
 
 You drop an anchor where you study. While you're within 50 m of it, **Stop is locked**.
