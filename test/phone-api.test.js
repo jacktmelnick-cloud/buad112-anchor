@@ -109,6 +109,27 @@ describe('phone mode over the tunnel', () => {
     assert.equal(app.state().status, 'running');
   });
 
+  test('a full set of live streams makes room for the newest instead of refusing it', async () => {
+    const openStream = () =>
+      new Promise((resolve, reject) => {
+        const req = http.request(
+          { host: '127.0.0.1', port, path: '/events', headers: { host: 'demo.trycloudflare.com', 'x-anchor-key': TOKEN } },
+          (res) => {
+            res.once('data', () => resolve({ req, res }));
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+    const streams = [];
+    for (let i = 0; i < 10; i += 1) streams.push(await openStream());
+    const firstEnded = new Promise((resolve) => streams[0].res.on('end', resolve));
+    const newest = await openStream();
+    assert.equal(newest.res.statusCode, 200);
+    await firstEnded;
+    [...streams, newest].forEach(({ req }) => req.destroy());
+  });
+
   test('the pairing code is only for the Mac', async () => {
     assert.equal((await remote('GET', '/api/connect')).status, 403);
   });

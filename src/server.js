@@ -138,7 +138,13 @@ function postRoutes(app) {
 }
 
 function serveEvents(req, res, app, streams) {
-  if (streams.size >= MAX_EVENT_STREAMS) return failure(res, 503, 'Too many open Anchor tabs. Close one and reload.');
+  // Full: the newest tab wins. Through a tunnel, a phone that went to sleep leaves its stream open
+  // for a long time, so refusing new ones would lock out the page you're actually looking at.
+  const oldest = streams.size >= MAX_EVENT_STREAMS ? streams.values().next().value : null;
+  if (oldest) {
+    streams.delete(oldest);
+    oldest.end();
+  }
   streams.add(res);
   res.writeHead(200, {
     ...SECURITY_HEADERS,
@@ -149,10 +155,12 @@ function serveEvents(req, res, app, streams) {
   const send = (snap) => !res.writableNeedDrain && res.write(`data: ${JSON.stringify(snap)}\n\n`);
   send(app.state());
   const unsubscribe = app.subscribe(send);
-  req.on('close', () => {
+  const drop = () => {
     unsubscribe();
     streams.delete(res);
-  });
+  };
+  req.on('close', drop);
+  res.on('close', drop);
   return undefined;
 }
 
