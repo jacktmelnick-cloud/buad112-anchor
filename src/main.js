@@ -5,8 +5,10 @@
  *   ANCHOR_MAC=1       also punish the Mac (sound, speech, overlay); off by default, the phone is the target
  *   ANCHOR_SILENT=1    skip sound, speech, and volume changes (for testing)
  *   ANCHOR_OVERLAY=0   skip the Mac-wide overlay; the page draws effects inside the tab instead
- *   ANCHOR_TOKEN=xyz   the phone's key (default: a new random one every start)
- *   ANCHOR_TUNNEL=0    don't start the Cloudflare tunnel
+ *   ANCHOR_TOKEN=xyz   the phone's key (default: made once and kept in data/token.txt)
+ *   ANCHOR_TUNNEL=0    don't start a tunnel
+ *   NGROK_DOMAIN=x.ngrok-free.app  use your free ngrok static domain: the phone link never changes
+ *                      (otherwise a Cloudflare quick tunnel, whose address changes every start)
  *   ANCHOR_DATA=dir    where the session file is saved (default ./data)
  */
 import fs from 'node:fs';
@@ -45,6 +47,21 @@ function writeSounds() {
   return { tickPath, sirenPath };
 }
 
+/** The phone's key survives restarts, so the Home Screen app and the Shortcuts keep working. */
+function loadToken() {
+  const file = path.join(dataDir, 'token.txt');
+  try {
+    const saved = fs.readFileSync(file, 'utf8').trim();
+    if (/^[\w-]{12,}$/.test(saved)) return saved;
+  } catch {
+    // first start
+  }
+  const token = crypto.randomBytes(9).toString('base64url');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(file, token, { mode: 0o600 });
+  return token;
+}
+
 function main() {
   if (process.platform !== 'darwin') log.error('Anchor drives macOS features; on this OS only the page will work.');
   const port = parsePort(process.env.PORT);
@@ -74,7 +91,7 @@ function main() {
   });
   if (useOverlay) overlay.start();
 
-  const token = process.env.ANCHOR_TOKEN || crypto.randomBytes(9).toString('base64url');
+  const token = process.env.ANCHOR_TOKEN || loadToken();
   const tunnel = process.env.ANCHOR_TUNNEL === '0' ? null : startTunnel({ port, token, log });
   const server = createHttpServer({
     app,

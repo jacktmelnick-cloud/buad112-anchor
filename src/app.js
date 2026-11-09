@@ -17,7 +17,7 @@ import {
   snapshot,
 } from './engine.js';
 import { createPlan, planEffects, overlayFrame } from './effects.js';
-import { phoneEffects } from './phone.js';
+import { phoneEffects, guardEffects, shameWallpaper } from './phone.js';
 import { RADIUS_M } from './config.js';
 import { createLogger } from './log.js';
 
@@ -142,6 +142,18 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
       if (fix) this.location(fix);
       if (state.status === 'running') this.phone(false);
       return ok(this.phoneNow());
+    },
+
+    /** iOS Shortcut: Settings or Shortcuts opened. Not phone time; inside the zone it's always locked. */
+    phoneGuarded({ fix }) {
+      if (fix) this.location(fix);
+      return ok(guardEffects(this.phoneNow()));
+    },
+
+    /** The shame wallpaper PNG for right now. */
+    wallpaper() {
+      const t = now();
+      return shameWallpaper(snapshot(tick(state, t), t));
     },
 
     /** The gate page's Continue button: confession if it's owed, then a pass that grows shorter every step. */

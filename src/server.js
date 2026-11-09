@@ -48,6 +48,7 @@ const CONTENT_TYPES = Object.freeze({
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
 });
 
 const SECURITY_HEADERS = Object.freeze({
@@ -124,6 +125,7 @@ function postRoutes(app) {
     '/api/confess': validated(parseConfess, (text) => app.confess(text)),
     '/api/phone/open': validated(parsePhoneEvent, (event) => app.phoneOpened(event)),
     '/api/phone/close': validated(parsePhoneEvent, (event) => app.phoneClosed(event)),
+    '/api/phone/guard': validated(parsePhoneEvent, (event) => app.phoneGuarded(event)),
     '/api/gate': validated(parseGatePass, (text) => app.passGate(text)),
     '/api/stop': () => app.stop(),
     '/api/reset': () => app.reset(),
@@ -200,6 +202,10 @@ export function createHttpServer({ app, publicDir, log = createLogger(), token =
       return local ? success(res, connect()) : failure(res, 403, 'Only the Mac can show the pairing code.');
     }
     if (req.method === 'GET' && pathname === '/api/phone/now') return success(res, app.phoneNow());
+    if (req.method === 'GET' && pathname === '/api/wallpaper.png') {
+      res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'image/png' });
+      return res.end(app.wallpaper());
+    }
     if (req.method === 'GET' && pathname === '/api/state') return success(res, app.state());
     if (req.method === 'GET' && pathname === '/api/rules') return success(res, RULES);
     if (req.method === 'GET' && pathname === '/events') return serveEvents(req, res, app, streams);

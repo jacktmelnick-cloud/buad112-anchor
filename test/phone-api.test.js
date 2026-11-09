@@ -90,7 +90,7 @@ describe('phone mode over the tunnel', () => {
     assert.equal(r.json.data.gate, false);
   });
 
-  test('first open gates for 10 s, then grayscale and dim arrive with phone time', async () => {
+  test('first open gates for 10 s, then grayscale, loud, and dim arrive with phone time', async () => {
     await startPhoneSession();
     let fx = (await open()).json.data;
     assert.equal(fx.active, true);
@@ -105,8 +105,65 @@ describe('phone mode over the tunnel', () => {
 
     advance(15_000);
     fx = (await open()).json.data;
+    assert.equal(fx.silentOff, true);
+    assert.equal(fx.volumePercent, 100);
+    assert.equal(fx.dim, false);
+
+    advance(15_000);
+    fx = (await open()).json.data;
     assert.equal(fx.dim, true);
     assert.equal(fx.brightness, DIM_BRIGHTNESS);
+    assert.equal(fx.brightnessPercent, 15);
+  });
+
+  test('huge text, shame wallpaper, and flashlight come later', async () => {
+    await startPhoneSession();
+    await open();
+    advance(76_000);
+    let fx = (await open()).json.data;
+    assert.equal(fx.bigText, true);
+    assert.equal(fx.shame, false);
+    advance(15_000);
+    fx = (await open()).json.data;
+    assert.equal(fx.shame, true);
+    assert.equal(fx.flash, false);
+    advance(15_000);
+    fx = (await open()).json.data;
+    assert.equal(fx.flash, true);
+    assert.ok(fx.flashBlinks > 0);
+  });
+
+  test('effects stay on after the app closes, while you are in the zone', async () => {
+    await startPhoneSession();
+    await open();
+    advance(50_000);
+    const fx = (await close()).json.data;
+    assert.equal(fx.active, true);
+    assert.equal(fx.grayscale, true);
+    assert.equal(fx.dim, true);
+    assert.equal(fx.reapplySeconds > 0, true);
+    const now = (await remote('GET', '/api/phone/now')).json.data;
+    assert.equal(now.grayscale, true);
+  });
+
+  test('Settings and Shortcuts are locked inside the zone and free outside it', async () => {
+    assert.equal((await remote('POST', '/api/phone/guard', { body: { app: 'Settings' } })).json.data.locked, false);
+    await startPhoneSession();
+    let fx = (await remote('POST', '/api/phone/guard', { body: { app: 'Settings' } })).json.data;
+    assert.equal(fx.locked, true);
+    assert.equal(fx.gate, true);
+    assert.equal(app.state().phone.onPhone, false);
+    fx = (await remote('POST', '/api/phone/guard', { body: { app: 'Settings', ...FAR, accuracy: 10 } })).json.data;
+    assert.equal(fx.locked, false);
+    assert.equal(fx.reapplySeconds, 0);
+  });
+
+  test('the shame wallpaper is a PNG and needs the key', async () => {
+    await startPhoneSession();
+    const r = await remote('GET', '/api/wallpaper.png');
+    assert.equal(r.status, 200);
+    assert.equal(r.text.slice(1, 4), 'PNG');
+    assert.equal((await remote('GET', '/api/wallpaper.png', { key: null })).status, 403);
   });
 
   test('closing the app pauses the clock; the step stays', async () => {
@@ -136,7 +193,7 @@ describe('phone mode over the tunnel', () => {
   test('the confession blocks the gate until typed, even after the app closed', async () => {
     await startPhoneSession();
     await open();
-    advance(61_000);
+    advance(121_000);
     await close();
     let fx = app.phoneNow();
     assert.equal(fx.confess, true);
@@ -163,16 +220,17 @@ describe('phone mode over the tunnel', () => {
   test('the phone ladder ends in the deposit only when money is down', async () => {
     await startPhoneSession({ deposit: 20 });
     assert.equal(app.state().mode, 'phone');
-    assert.equal(app.state().phone.maxLevel, 5);
+    assert.equal(app.state().phone.maxLevel, 9);
   });
 });
 
 /** Forward every app method to the current `app`, which beforeEach replaces. */
 function proxy() {
-  const names = ['state', 'start', 'phone', 'location', 'demo', 'confess', 'stop', 'reset', 'subscribe'];
+  const names = ['wallpaper', 'state', 'start', 'phone', 'location', 'demo', 'confess', 'stop', 'reset', 'subscribe'];
   const out = Object.fromEntries(names.map((n) => [n, (...args) => app[n](...args)]));
   out.phoneOpened = (e) => app.phoneOpened(e);
   out.phoneClosed = (e) => app.phoneClosed(e);
   out.passGate = (t) => app.passGate(t);
+  out.phoneGuarded = (e) => app.phoneGuarded(e);
   return out;
 }

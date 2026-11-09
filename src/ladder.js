@@ -52,8 +52,12 @@ const PHONE_STEPS = Object.freeze(
   [
     { id: 'gate', name: 'Gate', note: 'Opening an app bounces you to Anchor and makes you wait', sound: false },
     { id: 'gray', name: 'Grayscale', note: 'The whole phone goes grey', sound: false },
+    { id: 'loud', name: 'Loud', note: 'Silent mode off, volume all the way up', sound: false },
     { id: 'dim', name: 'Dim', note: 'Brightness drops to 15%', sound: false },
     { id: 'cost', name: 'Receipt', note: 'Tuition burned, counted live on the gate', sound: false },
+    { id: 'text', name: 'Huge text', note: 'Text size maxed out, feeds are a slog', sound: false },
+    { id: 'shame', name: 'Shame wallpaper', note: 'Your lock screen shows what you burned', sound: false },
+    { id: 'flash', name: 'Flashlight', note: 'The flashlight blinks every time you open an app', sound: false },
     { id: 'confess', name: 'Confession', note: 'Type it to get past the gate (once)', sound: false },
     { id: 'deposit', name: 'Deposit', note: 'Your deposit drains, a bigger bite every minute', sound: false },
   ].map((step) => Object.freeze(step)),
@@ -72,7 +76,7 @@ export const QUIET_LADDER = buildLadder(keep((step) => !step.sound), QUIET_LEVEL
 const NORMAL_NO_DEPOSIT = buildLadder(keep(notDeposit), LEVEL_MS, false);
 const QUIET_NO_DEPOSIT = buildLadder(keep((step) => !step.sound && notDeposit(step)), QUIET_LEVEL_MS, true);
 
-/** Phone mode: one step every 15 s, so the deposit lands at 1:15 on the phone. */
+/** Phone mode: one step every 15 s, so the deposit lands at 2:15 on the phone. */
 export const PHONE_LADDER = buildLadder(PHONE_STEPS, LEVEL_MS, true);
 const PHONE_NO_DEPOSIT = buildLadder(Object.freeze(PHONE_STEPS.filter(notDeposit)), LEVEL_MS, true);
 
