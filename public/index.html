@@ -35,10 +35,13 @@ FORM: Blue book + grading rubric, first on the list; staging = cover / open page
   <p class="offline" id="offline" role="status" hidden>Lost touch with Anchor. Reconnecting… (is <code>npm start</code> still running?)</p>
 
 
-  <aside class="pair" id="pair" aria-label="Connect your iPhone" hidden>
+  <aside class="pair" id="pair" aria-label="Connect phones" hidden>
+    <p class="pair__caption" id="pair-caption">Scan to try Anchor</p>
     <div class="pair__qr" id="pair-qr"></div>
-    <div class="pair__text">
-      <p class="pair__caption" id="pair-caption">Scan with your iPhone camera</p>
+    <p class="pair__mono" id="pair-guest"></p>
+    <button class="btn btn--outline btn--small" type="button" id="pair-owner-btn" aria-expanded="false" hidden>Show my phone's QR (private)</button>
+    <div class="pair__owner" id="pair-owner" hidden>
+      <div class="pair__qr pair__qr--small" id="pair-owner-qr"></div>
       <p class="pair__mono" id="pair-base"></p>
       <p class="pair__mono" id="pair-key"></p>
     </div>

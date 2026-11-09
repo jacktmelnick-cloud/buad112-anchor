@@ -554,10 +554,13 @@ async function loadPairing() {
       show('pair', true);
     }
     if (data?.url) {
-      $('pair-qr').innerHTML = data.qrSvg; // trusted server output
-      setText('pair-caption', 'Scan with your iPhone camera');
+      $('pair-qr').innerHTML = data.guestQrSvg || data.qrSvg; // trusted server output
+      setText('pair-caption', data.guestQrSvg ? 'Scan to try Anchor' : 'Scan with your iPhone camera');
+      setText('pair-guest', data.guestUrl || '');
+      $('pair-owner-qr').innerHTML = data.qrSvg; // trusted server output
       setText('pair-base', data.base);
       setText('pair-key', data.token);
+      show('pair-owner-btn', Boolean(data.guestQrSvg));
       show('pair', true);
       return;
     }
@@ -565,6 +568,15 @@ async function loadPairing() {
     /* server not ready yet; retry below */
   }
   setTimeout(loadPairing, 3000);
+}
+
+function wirePairing() {
+  $('pair-owner-btn').addEventListener('click', () => {
+    const open = $('pair-owner').hidden;
+    show('pair-owner', open);
+    $('pair-owner-btn').setAttribute('aria-expanded', String(open));
+    setText('pair-owner-btn', open ? 'Hide my phone\'s QR' : 'Show my phone\'s QR (private)');
+  });
 }
 
 async function init() {
@@ -584,6 +596,7 @@ async function init() {
   renderAnchorStatus();
   startLocation();
   connect();
+  wirePairing();
   loadPairing();
 }
 

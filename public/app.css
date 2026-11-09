@@ -1387,9 +1387,9 @@ body[data-fx-blur='on'] .phone-control {
   bottom: 16px;
   z-index: 5;
   display: flex;
-  gap: 12px;
-  align-items: center;
-  max-width: 340px;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 280px;
   padding: 10px 12px;
   background: var(--paper);
   border: 2px solid var(--ink);
@@ -1399,8 +1399,13 @@ body[data-fx-blur='on'] .phone-control {
 
 .pair__qr svg {
   display: block;
-  width: 110px;
-  height: 110px;
+  width: 240px;
+  height: 240px;
+}
+
+.pair__qr--small svg {
+  width: 120px;
+  height: 120px;
 }
 
 .pair__caption {

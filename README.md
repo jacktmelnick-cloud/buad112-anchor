@@ -28,6 +28,8 @@ Anchor punishes your **phone**. Inside a 50 m zone around your anchor, opening a
 | 2:00 | Confession | Type the phrase to pass the gate | 50 s | 20 s |
 | 2:15 | Deposit | Deposit drains (only if you put one down) | 60 s | 15 s |
 
+**Guest mode:** the QR on the Mac page is now a guest QR. Classmates who scan it land on `/guest.html`, which shows the presenter's session live (study time, phone time, current step, tuition burned, deposit, grade) and lets them try a sandbox of the ladder on their own phone. Guests are read-only and the sandbox sends nothing to the server. The "Show my phone's QR (private)" button reveals the owner QR. Delete `data/guest-token.txt` to rotate the guest key.
+
 Opening Settings or Shortcuts inside the zone bounces you to a locked screen. The Mac effects (sound, speech, overlay) are opt-in: `ANCHOR_MAC=1 npm start`.
 
 ---
