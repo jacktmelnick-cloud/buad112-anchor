@@ -102,8 +102,8 @@ const sbCost = () => (sb.phoneMs / 60000) * (TUITION / CLASS_MIN);
 
 function applyEffects() {
   const on = sb.mode !== 'off';
-  document.documentElement.style.filter = on && reached('gray') ? 'grayscale(1)' : '';
-  document.documentElement.style.fontSize = on && reached('text') ? '140%' : '';
+  grayLayer().dataset.on = String(Boolean(on && reached('gray')));
+  document.documentElement.style.fontSize = on && reached('text') ? '175%' : '';
   $('sb-dim').dataset.on = String(on && reached('dim'));
 }
 
@@ -284,3 +284,16 @@ async function init() {
 }
 
 init();
+
+/** The see-through grey layer (styles in phone.css); iOS Safari won't grey the page background with a filter. */
+function grayLayer() {
+  let el = document.getElementById('gray');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gray';
+    el.className = 'gray';
+    el.setAttribute('aria-hidden', 'true');
+    document.body.append(el);
+  }
+  return el;
+}

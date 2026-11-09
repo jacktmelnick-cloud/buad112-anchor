@@ -153,9 +153,9 @@ function renderDone(s) {
 function renderEffects(s) {
   const fx = s.phoneFx || {};
   const on = s.status === 'running' && Boolean(fx.active);
-  document.body.dataset.gray = String(Boolean(on && fx.grayscale));
+  $('gray').dataset.on = String(Boolean(on && fx.grayscale));
   $('dim').dataset.on = String(Boolean(on && fx.dim));
-  document.documentElement.style.fontSize = on && fx.bigText ? '125%' : '';
+  document.documentElement.style.fontSize = on && fx.bigText ? '175%' : '';
 }
 
 /* ---------- gate ---------- */

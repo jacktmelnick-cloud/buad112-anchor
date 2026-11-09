@@ -68,7 +68,9 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .error--gate { color: var(--paper); }
 .dim { position: fixed; inset: 0; z-index: 40; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
 .dim[data-on="true"] { opacity: 0.6; }
-body[data-gray="true"] { filter: grayscale(1); }
+/* Grey: a see-through layer over everything. iOS Safari ignores a filter on <body> for the page background. */
+.gray { position: fixed; inset: 0; z-index: 41; pointer-events: none; display: none; -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1); }
+.gray[data-on="true"] { display: block; }
 
 /* one-time install card */
 .install { margin-top: 16px; }
