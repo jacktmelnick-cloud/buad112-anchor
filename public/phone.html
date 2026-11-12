@@ -13,7 +13,9 @@
   <title>Anchor</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="phone.css">
+  <script src="lib/leaflet/leaflet.js" defer></script>
   <script src="phone.js" type="module"></script>
 </head>
 <body data-view="loading">
@@ -81,6 +83,8 @@
       <div class="anchor-card" id="anchor-card" data-inside="true">
         <p class="anchor-card__line">You are <strong class="anchor-card__dist"><span id="anchor-dist">–</span> m</strong> away from your anchor</p>
         <div class="anchor-card__bar" aria-hidden="true"><span id="anchor-bar"></span></div>
+        <div class="zone-map" id="zone-map" role="img" aria-label="Map of your no-phone zone around the anchor"></div>
+        <p class="zone-map__key"><span class="zone-map__swatch zone-map__swatch--zone"></span>No-phone zone <span class="zone-map__swatch zone-map__swatch--unlock"></span>Stop unlocks <span class="zone-map__swatch zone-map__swatch--you"></span>You</p>
         <p class="anchor-card__note" id="anchor-note">Finding you...</p>
         <p class="anchor-card__live"><span class="anchor-card__dot" aria-hidden="true"></span><span id="anchor-live">Live GPS</span></p>
       </div>

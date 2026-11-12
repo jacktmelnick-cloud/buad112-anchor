@@ -156,10 +156,64 @@ function renderLive() {
     setText('anchor-note', inside ? `Stop unlocks at ${unlockAt} m: ${unlockAt - meters} m to go.` : 'Outside the zone. You can stop.');
     $('anchor-bar').style.width = `${Math.min(100, (meters / unlockAt) * 100)}%`;
   }
+  renderMap(loc, own);
   const stale = !loc.simulated && (!geo.fix || Date.now() - geo.at > STALE_FIX_MS);
   $('anchor-live').parentElement.dataset.stale = String(stale);
   setText('anchor-live', loc.simulated ? 'Simulated distance (presenter)'
     : geo.fix ? `Live GPS, accurate to ${Math.round(geo.fix.accuracy)} m${stale ? ' (waiting for a new fix)' : ''}` : 'Waiting for GPS');
+}
+
+/* ---------- zone map ---------- */
+
+const ZONE_COLOR = '#d7262e';
+const INK = '#14284b';
+const YOU_COLOR = '#2a7de1';
+const ANCHOR_SVG = '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="10" r="5"/><path d="M32 15v42M21 25h22M12 38c2 11 10 18 20 19 10-1 18-8 20-19"/></svg>';
+const zoneMap = { map: null, key: '', anchor: null, zone: null, unlock: null, you: null, youHalo: null };
+
+/** Red: where using your phone counts. Dashed: where Stop unlocks (zone plus GPS margin). Blue: you, with GPS accuracy. */
+function renderMap(loc, own) {
+  const L = window.L;
+  if (!L || !loc.anchor) return;
+  const anchor = [loc.anchor.lat, loc.anchor.lng];
+  if (!zoneMap.map) {
+    zoneMap.map = L.map('zone-map', { zoomControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap contributors',
+      // The page sends no referrer, but OpenStreetMap's tile policy wants to know which site is asking (just the origin).
+      referrerPolicy: 'strict-origin',
+    }).addTo(zoneMap.map);
+    zoneMap.zone = L.circle(anchor, { radius: 1, color: ZONE_COLOR, weight: 2, fillColor: ZONE_COLOR, fillOpacity: 0.18 }).addTo(zoneMap.map);
+    zoneMap.unlock = L.circle(anchor, { radius: 1, color: INK, weight: 2, dashArray: '6 6', fill: false }).addTo(zoneMap.map);
+    zoneMap.anchor = L.marker(anchor, { icon: L.divIcon({ className: '', html: `<span class="anchor-pin">${ANCHOR_SVG}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] }), keyboard: false, interactive: false }).addTo(zoneMap.map);
+    zoneMap.youHalo = L.circle(anchor, { radius: 1, stroke: false, fillColor: YOU_COLOR, fillOpacity: 0.15, interactive: false });
+    zoneMap.you = L.circleMarker(anchor, { radius: 7, color: '#fff', weight: 3, fillColor: YOU_COLOR, fillOpacity: 1, interactive: false });
+  }
+  const radius = loc.radiusM ?? 50;
+  const unlockAt = loc.unlockAtM ?? radius;
+  zoneMap.zone.setLatLng(anchor).setRadius(radius);
+  zoneMap.unlock.setLatLng(anchor).setRadius(unlockAt);
+  zoneMap.anchor.setLatLng(anchor);
+  const showYou = Boolean(own);
+  if (showYou) {
+    const you = [geo.fix.lat, geo.fix.lng];
+    zoneMap.you.setLatLng(you).addTo(zoneMap.map);
+    zoneMap.youHalo.setLatLng(you).setRadius(geo.fix.accuracy).addTo(zoneMap.map);
+  } else {
+    zoneMap.you.remove();
+    zoneMap.youHalo.remove();
+  }
+  // Keep the whole unlock ring and you in view; only re-fit when that frame actually changes.
+  let bounds = L.latLng(anchor).toBounds(unlockAt * 2);
+  if (showYou) bounds = bounds.extend([geo.fix.lat, geo.fix.lng]);
+  // The map's size is in the key too, so it re-fits after the gate or locked screen was covering it.
+  const box = $('zone-map');
+  const key = `${bounds.toBBoxString()} ${box.clientWidth}x${box.clientHeight}`;
+  if (key !== zoneMap.key) {
+    zoneMap.key = key;
+    zoneMap.map.invalidateSize();
+    zoneMap.map.fitBounds(bounds, { padding: [18, 18], maxZoom: 19, animate: false });
+  }
 }
 
 /** The anchor falls in and ripples out, then gets out of the way. */

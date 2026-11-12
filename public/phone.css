@@ -42,6 +42,16 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .anchor-card__bar { height: 8px; border-radius: 99px; background: var(--rule); overflow: hidden; }
 .anchor-card__bar span { display: block; height: 100%; width: 0; background: var(--pen); border-radius: inherit; transition: width 0.45s linear; }
 .anchor-card[data-inside="false"] .anchor-card__bar span { background: var(--ink); }
+.zone-map { height: 240px; border-radius: 8px; border: 2px solid var(--ink); overflow: hidden; background: var(--rule); z-index: 0; }
+.zone-map .leaflet-control-attribution { font-size: 9px; }
+.zone-map__key { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.72rem; color: var(--pencil); }
+.zone-map__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-left: 6px; }
+.zone-map__swatch:first-child { margin-left: 0; }
+.zone-map__swatch--zone { background: rgb(215 38 46 / 0.3); border: 2px solid var(--pen); }
+.zone-map__swatch--unlock { border: 2px dashed var(--ink); }
+.zone-map__swatch--you { background: #2a7de1; border: 2px solid #fff; box-shadow: 0 0 0 1px #2a7de1; }
+.anchor-pin { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--paper); border: 2px solid var(--paper); }
+.anchor-pin svg { width: 16px; height: 16px; }
 .anchor-card__note { margin: 0; font: 700 1.1rem var(--hand); }
 .anchor-card__live { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--pencil); }
 .anchor-card__dot { width: 8px; height: 8px; border-radius: 50%; background: #1f9d55; animation: live-pulse 1s ease-in-out infinite; }
