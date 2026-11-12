@@ -1,7 +1,12 @@
 // Anchor phone page. The server owns the session; this renders snapshots from /events,
 // reports location, and shows the gate. No user text is ever written as HTML.
 const $ = (id) => document.getElementById(id);
-const LOCATION_SEND_MS = 5000;
+/** The distance on screen is redrawn from live GPS this often; the server hears a fix every LOCATION_SEND_MS. */
+const LIVE_MS = 500;
+const LOCATION_SEND_MS = 2000;
+/** A GPS fix older than this shows the live dot as stale. */
+const STALE_FIX_MS = 5000;
+const DROP_MS = 2300;
 const KEY_STORE = 'anchor-key';
 
 let memoryKey = '';
@@ -13,7 +18,7 @@ let gateTimer = null;
 let gateSeconds = 0;
 let gatePassed = false;
 let lockedOpen = false;
-const geo = { fix: null, lastSentAt: 0, error: '' };
+const geo = { fix: null, at: 0, lastSentAt: 0, error: '' };
 
 /* ---------- key ---------- */
 
@@ -107,12 +112,8 @@ function renderSession(s) {
     li.dataset.state = state;
     li.firstChild.textContent = state === 'reached' ? '✓' : state === 'current' ? String(i + 1) : '';
   });
+  renderLive();
   const loc = s.location;
-  const locEl = $('loc');
-  locEl.dataset.inside = String(Boolean(loc.inside));
-  setText('loc', !loc.hasAnchor ? 'No anchor yet.'
-    : loc.inside ? `Inside the zone (${Math.round(loc.distanceM)} m from anchor). Stop is locked.`
-    : `${Math.round(loc.distanceM)} m from anchor. Outside the zone.`);
   const stop = $('stop-btn');
   stop.disabled = !s.canStop;
   setText('stop-why', s.canStop ? 'You walked away. You can stop.' : `Stop unlocks past ${loc.unlockAtM ?? rules.unlockAtM ?? 50} m from your anchor.`);
@@ -124,6 +125,53 @@ function renderSession(s) {
     $('speed-range').value = s.demoSpeed || 1;
     setText('speed-out', `${s.demoSpeed || 1}x`);
   }
+}
+
+/** Meters between two fixes (haversine), the same math the server uses. */
+function metersBetween(a, b) {
+  const rad = Math.PI / 180;
+  const h = Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
+  return 2 * 6_371_008.8 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** "You are N m away from your anchor": from this phone's own GPS when it can, else what the server last said. */
+function renderLive() {
+  if (snap?.status !== 'running') return;
+  const loc = snap.location;
+  const own = loc.anchor && geo.fix && !loc.simulated;
+  const distance = own ? metersBetween(loc.anchor, geo.fix) : loc.distanceM;
+  const unlockAt = Math.round(loc.unlockAtM ?? loc.radiusM ?? 50);
+  const card = $('anchor-card');
+  if (distance == null) {
+    card.dataset.inside = 'true';
+    setText('anchor-dist', '–');
+    setText('anchor-note', geo.error || 'Finding you...');
+    $('anchor-bar').style.width = '0';
+  } else {
+    const meters = Math.round(distance);
+    const inside = meters <= unlockAt;
+    card.dataset.inside = String(inside);
+    setText('anchor-dist', String(meters));
+    setText('anchor-note', inside ? `Stop unlocks at ${unlockAt} m: ${unlockAt - meters} m to go.` : 'Outside the zone. You can stop.');
+    $('anchor-bar').style.width = `${Math.min(100, (meters / unlockAt) * 100)}%`;
+  }
+  const stale = !loc.simulated && (!geo.fix || Date.now() - geo.at > STALE_FIX_MS);
+  $('anchor-live').parentElement.dataset.stale = String(stale);
+  setText('anchor-live', loc.simulated ? 'Simulated distance (presenter)'
+    : geo.fix ? `Live GPS, accurate to ${Math.round(geo.fix.accuracy)} m${stale ? ' (waiting for a new fix)' : ''}` : 'Waiting for GPS');
+}
+
+/** The anchor falls in and ripples out, then gets out of the way. */
+function playDrop(fix) {
+  setText('drop-sub', fix ? `Right here, accurate to ${Math.round(fix.accuracy)} m.` : 'Right here.');
+  const el = $('drop');
+  el.hidden = false;
+  // Restart the CSS animations if it plays twice without a reload.
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+  return new Promise((resolve) => setTimeout(() => { el.hidden = true; resolve(); }, DROP_MS));
 }
 
 function renderDone(s) {
@@ -307,19 +355,25 @@ function startLocation() {
   navigator.geolocation.watchPosition(
     (p) => {
       geo.fix = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
+      geo.at = Date.now();
       geo.error = '';
-      sendFix();
     },
     (e) => { geo.error = e.code === 1 ? 'Location is blocked. Allow it for this page in Settings, then reload.' : 'Could not get your location.'; },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
   );
+  // Live tracking: redraw the distance every half second, and keep the server's copy close behind.
+  setInterval(() => {
+    if (snap?.status !== 'running') return;
+    renderLive();
+    sendFix();
+  }, LIVE_MS);
 }
 
 function freshFix() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('This browser has no location.'));
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      (p) => { geo.at = Date.now(); resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }); },
       (e) => (e.code !== 1 && geo.fix ? resolve(geo.fix) : reject(new Error(e.code === 1 ? 'Location is blocked. Allow it for this page, then try again.' : 'Could not get your location. Try again outside.'))),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
     );
@@ -359,6 +413,7 @@ async function onStart(event) {
     try { localStorage.setItem('anchor-quiet', body.quiet ? '1' : '0'); } catch { /* private mode */ }
     const res = await api('/api/start', body);
     if (!res.ok) throw new Error(res.error);
+    await playDrop(geo.fix);
     if (installed()) runEnforcer();
   } catch (err) {
     setText('start-error', err.message);

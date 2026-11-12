@@ -401,6 +401,8 @@ export function snapshot(state, now) {
     cost: cents((state.phoneMs / 60_000) * rate),
     location: {
       hasAnchor: state.location.anchor !== null,
+      // So the phone can redraw its distance from live GPS between server updates. Guests never see it.
+      anchor: state.location.anchor,
       distanceM: distance,
       accuracyM: state.location.current?.accuracy ?? null,
       simulated: state.location.simulatedM !== null,

@@ -78,7 +78,12 @@
       <p class="label">Left to study</p>
       <p class="big" id="study-time">25:00</p>
       <p class="pen-line">On your phone <strong id="phone-time">0:00</strong> <span id="pickups"></span></p>
-      <p class="loc" id="loc">Finding you...</p>
+      <div class="anchor-card" id="anchor-card" data-inside="true">
+        <p class="anchor-card__line">You are <strong class="anchor-card__dist"><span id="anchor-dist">–</span> m</strong> away from your anchor</p>
+        <div class="anchor-card__bar" aria-hidden="true"><span id="anchor-bar"></span></div>
+        <p class="anchor-card__note" id="anchor-note">Finding you...</p>
+        <p class="anchor-card__live"><span class="anchor-card__dot" aria-hidden="true"></span><span id="anchor-live">Live GPS</span></p>
+      </div>
       <h2 class="label">Phone rubric</h2>
       <ol class="rubric" id="rubric"></ol>
       <button class="btn btn--outline" type="button" id="stop-btn" disabled>Stop studying</button>
@@ -148,5 +153,15 @@
   <div class="dim" id="dim" aria-hidden="true"></div>
   <div class="gray" id="gray" aria-hidden="true"></div>
   <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="drop" id="drop" hidden role="status">
+    <div class="drop__stage" aria-hidden="true">
+      <span class="drop__ring"></span><span class="drop__ring"></span><span class="drop__ring"></span>
+      <svg class="drop__anchor" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="32" cy="10" r="5"/><path d="M32 15v42M21 25h22M12 38c2 11 10 18 20 19 10-1 18-8 20-19M7 43l5-6 6 5M57 43l-5-6-6 5"/>
+      </svg>
+    </div>
+    <p class="drop__title">Anchor dropped</p>
+    <p class="drop__sub" id="drop-sub">Right here.</p>
+  </div>
 </body>
 </html>
