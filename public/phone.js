@@ -84,6 +84,7 @@ function render(next) {
   show('setup', view === 'setup' && !cover);
   show('session', view === 'session' && !cover);
   show('done', view === 'done' && !cover);
+  if (view === 'setup') renderSpot();
   if (view === 'session') renderSession(next);
   if (view === 'done') renderDone(next);
   renderEffects(next);
@@ -120,8 +121,7 @@ function renderSession(s) {
   });
   renderLive();
   const loc = s.location;
-  const stop = $('stop-btn');
-  stop.disabled = !s.canStop;
+  $('stop-btn').dataset.locked = String(!s.canStop);
   setText('stop-why', s.canStop ? 'You walked away. You can stop.' : `Stop unlocks past ${loc.unlockAtM ?? rules.unlockAtM ?? 50} m from your anchor.`);
   setText('course-name', s.courseName || 'BUAD 112');
   const dep = s.deposit;
@@ -160,8 +160,13 @@ function renderLive() {
     card.dataset.inside = String(inside);
     setText('anchor-dist', String(meters));
     setText('anchor-note', inside ? `Stop unlocks at ${unlockAt} m: ${unlockAt - meters} m to go.` : 'Outside the zone. You can stop.');
+    setText('cant-body', inside ? `You're inside the no-phone zone. Walk ${unlockAt - meters} m more to leave it, then you can stop.` : 'You just left the zone. Tap Stop again.');
     $('anchor-bar').style.width = `${Math.min(100, (meters / unlockAt) * 100)}%`;
   }
+  const inside = card.dataset.inside === 'true';
+  $('zone-status').dataset.inside = String(inside);
+  setText('zone-status-title', inside ? 'No-phone zone' : 'Outside the zone');
+  setText('zone-status-sub', inside ? 'Phone use here is penalized. Stop is locked.' : 'Your phone is free here. You can stop.');
   renderMap(loc, own);
   const stale = !loc.simulated && (!geo.fix || Date.now() - geo.at > STALE_FIX_MS);
   $('anchor-live').parentElement.dataset.stale = String(stale);
@@ -175,6 +180,46 @@ const ZONE_COLOR = '#d7262e';
 const INK = '#14284b';
 const YOU_COLOR = '#2a7de1';
 const ANCHOR_SVG = '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="10" r="5"/><path d="M32 15v42M21 25h22M12 38c2 11 10 18 20 19 10-1 18-8 20-19"/></svg>';
+const addTiles = (map) => window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap contributors',
+  // The page sends no referrer, but OpenStreetMap's tile policy wants to know which site is asking (just the origin).
+  referrerPolicy: 'strict-origin',
+}).addTo(map);
+const ZONE_STYLE = { color: ZONE_COLOR, weight: 2, fillColor: ZONE_COLOR, fillOpacity: 0.22, interactive: false };
+
+/*
+ * Picking the study spot, like parking a scooter: the pin stays in the middle and you drag the map under it.
+ * It follows your GPS until you drag; the locate button goes back to following.
+ */
+const spot = { map: null, circle: null, moved: false };
+
+function spotRadius() {
+  const r = Number(document.querySelector('#start-form [name=radiusM]').value);
+  return Number.isFinite(r) && r >= 10 ? Math.min(r, 400) : 50;
+}
+
+function renderSpot() {
+  const L = window.L;
+  if (!L || $('setup').hidden) return;
+  if (!spot.map) {
+    spot.map = L.map('spot-map', { zoomControl: false, doubleClickZoom: 'center', scrollWheelZoom: 'center', touchZoom: 'center' })
+      .setView(geo.fix ? [geo.fix.lat, geo.fix.lng] : [34.0205, -118.2856], 17);
+    addTiles(spot.map);
+    spot.circle = L.circle(spot.map.getCenter(), { ...ZONE_STYLE, radius: spotRadius() }).addTo(spot.map);
+    spot.map.on('move', () => spot.circle.setLatLng(spot.map.getCenter()));
+    spot.map.on('dragstart', () => { spot.moved = true; $('spot-map').parentElement.dataset.dragging = 'true'; renderSpot(); });
+    spot.map.on('dragend', () => { $('spot-map').parentElement.dataset.dragging = 'false'; });
+  }
+  spot.map.invalidateSize();
+  spot.circle.setRadius(spotRadius());
+  if (!spot.moved && geo.fix) {
+    spot.map.fitBounds(L.latLng(geo.fix.lat, geo.fix.lng).toBounds(spotRadius() * 2.6), { animate: false, maxZoom: 19 });
+  }
+  $('spot-locate').dataset.on = String(!spot.moved);
+  setText('spot-tag', spot.moved ? 'Your anchor drops on the pin' : 'Drag the map to put the pin on your desk');
+  setText('spot-acc', spot.moved ? 'Placed by hand' : geo.fix ? `GPS, accurate to ${Math.round(geo.fix.accuracy)} m` : geo.error || 'Finding you...');
+}
+
 const zoneMap = { map: null, key: '', anchor: null, zone: null, unlock: null, you: null, youHalo: null };
 
 /** Red: where using your phone counts. Dashed: where Stop unlocks (zone plus GPS margin). Blue: you, with GPS accuracy. */
@@ -184,12 +229,8 @@ function renderMap(loc, own) {
   const anchor = [loc.anchor.lat, loc.anchor.lng];
   if (!zoneMap.map) {
     zoneMap.map = L.map('zone-map', { zoomControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '© OpenStreetMap contributors',
-      // The page sends no referrer, but OpenStreetMap's tile policy wants to know which site is asking (just the origin).
-      referrerPolicy: 'strict-origin',
-    }).addTo(zoneMap.map);
-    zoneMap.zone = L.circle(anchor, { radius: 1, color: ZONE_COLOR, weight: 2, fillColor: ZONE_COLOR, fillOpacity: 0.18 }).addTo(zoneMap.map);
+    addTiles(zoneMap.map);
+    zoneMap.zone = L.circle(anchor, { ...ZONE_STYLE, radius: 1 }).addTo(zoneMap.map);
     zoneMap.unlock = L.circle(anchor, { radius: 1, color: INK, weight: 2, dashArray: '6 6', fill: false }).addTo(zoneMap.map);
     zoneMap.anchor = L.marker(anchor, { icon: L.divIcon({ className: '', html: `<span class="anchor-pin">${ANCHOR_SVG}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] }), keyboard: false, interactive: false }).addTo(zoneMap.map);
     zoneMap.youHalo = L.circle(anchor, { radius: 1, stroke: false, fillColor: YOU_COLOR, fillOpacity: 0.15, interactive: false });
@@ -218,13 +259,14 @@ function renderMap(loc, own) {
   if (key !== zoneMap.key) {
     zoneMap.key = key;
     zoneMap.map.invalidateSize();
-    zoneMap.map.fitBounds(bounds, { padding: [18, 18], maxZoom: 19, animate: false });
+    // Leave room for the status banner on top and the key at the bottom.
+    zoneMap.map.fitBounds(bounds, { paddingTopLeft: [20, 96], paddingBottomRight: [20, 52], maxZoom: 19, animate: false });
   }
 }
 
 /** The anchor falls in and ripples out, then gets out of the way. */
-function playDrop(fix) {
-  setText('drop-sub', fix ? `Right here, accurate to ${Math.round(fix.accuracy)} m.` : 'Right here.');
+function playDrop(fix, byHand = false) {
+  setText('drop-sub', byHand ? 'Right where you put the pin.' : fix ? `Right here, accurate to ${Math.round(fix.accuracy)} m.` : 'Right here.');
   const el = $('drop');
   el.hidden = false;
   // Restart the CSS animations if it plays twice without a reload.
@@ -436,6 +478,7 @@ function startLocation() {
       geo.fix = blend(geo.samples);
       geo.at = now;
       geo.error = '';
+      if (snap?.status !== 'running') renderSpot();
     },
     (e) => { geo.error = e.code === 1 ? 'Location is blocked. Allow it for this page in Settings, then reload.' : 'Could not get your location.'; },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
@@ -506,18 +549,24 @@ async function onStart(event) {
   btn.disabled = true;
   setText('start-error', '');
   try {
-    setText('start-btn', 'Finding your exact spot...');
-    geo.fix = await preciseFix((best) => setText('start-btn', `Finding your exact spot... ${Math.round(best)} m`));
-    const loc = await sendFix(true);
-    if (!loc.ok) throw new Error(loc.error);
-    const body = { studyMinutes: minutes, radiusM, anchor: geo.fix, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
+    let anchor;
+    if (spot.moved && spot.map) {
+      // You put the pin where your desk is, so that's the anchor, exactly.
+      const c = spot.map.getCenter();
+      anchor = { lat: c.lat, lng: c.lng, accuracy: 5 };
+    } else {
+      setText('start-btn', 'Finding your exact spot...');
+      geo.fix = await preciseFix((best) => setText('start-btn', `Finding your exact spot... ${Math.round(best)} m`));
+      anchor = geo.fix;
+    }
+    const body = { studyMinutes: minutes, radiusM, anchor, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
     if (tuition !== null) body.tuitionPerYear = tuition;
     if (deposit) body.deposit = deposit;
     body.quiet = data.get('quiet') === 'on';
     try { localStorage.setItem('anchor-quiet', body.quiet ? '1' : '0'); } catch { /* private mode */ }
     const res = await api('/api/start', body);
     if (!res.ok) throw new Error(res.error);
-    await playDrop(geo.fix);
+    await playDrop(anchor, spot.moved);
     if (installed()) runEnforcer();
   } catch (err) {
     setText('start-error', err.message);
@@ -684,7 +733,16 @@ function wire() {
   $('locked-back').addEventListener('click', closeLocked);
   show('a2hs', window.navigator.standalone === false);
   $('start-form').addEventListener('submit', onStart);
-  $('stop-btn').addEventListener('click', async () => { const r = await api('/api/stop', {}); if (!r.ok) setText('session-error', r.error); });
+  // Like trying to park in a no-parking zone: Stop inside the zone explains instead of doing nothing.
+  $('stop-btn').addEventListener('click', async () => {
+    if (!snap?.canStop) { renderLive(); show('cant', true); $('cant-ok').focus(); return; }
+    const r = await api('/api/stop', {});
+    if (!r.ok) setText('session-error', r.error);
+  });
+  $('cant-ok').addEventListener('click', () => show('cant', false));
+  $('cant').addEventListener('click', (e) => { if (e.target === e.currentTarget) show('cant', false); });
+  $('spot-locate').addEventListener('click', () => { spot.moved = false; renderSpot(); });
+  document.querySelector('#start-form [name=radiusM]').addEventListener('input', renderSpot);
   $('again-btn').addEventListener('click', async () => { const r = await api('/api/reset', {}); if (!r.ok) setText('done-error', r.error); });
   $('open-btn').addEventListener('click', simulateOpen);
   $('close-btn').addEventListener('click', async () => { const r = await api('/api/phone/close', { app: 'Instagram' }); setText('session-error', r.ok ? '' : r.error); });

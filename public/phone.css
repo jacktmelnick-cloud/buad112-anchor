@@ -5,7 +5,7 @@
 
 :root {
   --cover: #a9c7ec; --cover-shade: #93b6e2; --ink: #14284b; --pencil: #556682;
-  --paper: #fcfbf7; --rule: #c9dcf1; --pen: #d7262e;
+  --paper: #fcfbf7; --rule: #c9dcf1; --pen: #d7262e; --free: #1f7a4a;
   --print: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --hand: 'Kalam', 'Bradley Hand', cursive;
   --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
@@ -28,7 +28,7 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .btn--pen { border-color: var(--pen); color: var(--pen); background: var(--paper); }
 .btn--paper { background: var(--paper); color: var(--pen); border-color: var(--paper); }
 .btn--small { min-height: 44px; font-size: 0.95rem; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:disabled, .btn[data-locked="true"] { opacity: 0.5; cursor: not-allowed; }
 .error { margin: 0; color: var(--pen); font: 700 0.95rem var(--hand); min-height: 1.2em; }
 .hint { margin: 0; font-size: 0.85rem; color: var(--pencil); }
 .offline { position: fixed; top: var(--safe-t); left: 0; right: 0; margin: 0; padding: 8px 12px; background: var(--ink); color: var(--paper); font-size: 0.85rem; text-align: center; z-index: 30; }
@@ -42,9 +42,34 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 .anchor-card__bar { height: 8px; border-radius: 99px; background: var(--rule); overflow: hidden; }
 .anchor-card__bar span { display: block; height: 100%; width: 0; background: var(--pen); border-radius: inherit; transition: width 0.45s linear; }
 .anchor-card[data-inside="false"] .anchor-card__bar span { background: var(--ink); }
-.zone-map { height: 240px; border-radius: 8px; border: 2px solid var(--ink); overflow: hidden; background: var(--rule); z-index: 0; }
-.zone-map .leaflet-control-attribution { font-size: 9px; }
-.zone-map__key { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.72rem; color: var(--pencil); }
+/* Map-first screens: the map runs edge to edge under the status bar, with chips floating on it. */
+.map-hero { position: relative; margin: calc(-16px - var(--safe-t)) -16px 0; height: 52vh; min-height: 300px; overflow: hidden; background: var(--rule); border-bottom: 2px solid var(--ink); isolation: isolate; }
+.map-hero__map { position: absolute; inset: 0; z-index: 0; }
+.map-hero .leaflet-control-attribution { font-size: 9px; }
+.map-hero__tag, .map-hero__chip, .zone-status { position: absolute; z-index: 700; margin: 0; background: var(--paper); color: var(--ink); border-radius: 99px; box-shadow: 0 6px 16px -8px rgb(20 40 75 / 0.6); }
+.map-hero__tag { top: calc(var(--safe-t) + 12px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 8px 14px; font-weight: 700; font-size: 0.9rem; text-align: center; }
+.map-hero__chip { left: 12px; bottom: 12px; padding: 6px 10px; font-size: 0.75rem; font-weight: 600; }
+.spot__pin { position: absolute; left: 50%; top: 50%; z-index: 700; width: 40px; height: 52px; margin: -52px 0 0 -20px; color: var(--ink); pointer-events: none; filter: drop-shadow(0 4px 4px rgb(20 40 75 / 0.4)); transition: transform 0.15s ease-out; }
+.spot__pin::after { content: ''; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 4px; margin-left: -4px; border-radius: 50%; background: rgb(20 40 75 / 0.45); }
+.spot[data-dragging="true"] .spot__pin { transform: translateY(-10px); }
+.spot__locate { position: absolute; right: 12px; bottom: 12px; z-index: 700; width: 48px; height: 48px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 50%; background: var(--paper); color: var(--ink); cursor: pointer; }
+.spot__locate svg { width: 24px; height: 24px; }
+.spot__locate[data-on="true"] { background: var(--ink); color: var(--paper); }
+.zone-status { top: calc(var(--safe-t) + 12px); left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; color: var(--paper); }
+.zone-status svg { flex: none; width: 28px; height: 28px; }
+.zone-status strong { display: block; font: 800 1.15rem/1.1 var(--print); font-stretch: 80%; text-transform: uppercase; letter-spacing: 0.03em; }
+.zone-status small { display: block; font-size: 0.85rem; }
+.zone-status[data-inside="true"] { background: var(--pen); }
+.zone-status[data-inside="false"] { background: var(--free); }
+.zone-status[data-inside="false"] path { display: none; }
+.zone-map__key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; right: auto; }
+.cant { position: fixed; inset: 0; z-index: 45; display: flex; align-items: flex-end; background: rgb(20 40 75 / 0.45); }
+.cant__panel { width: 100%; padding: 22px 18px calc(var(--safe-b) + 18px); background: var(--paper); border-radius: 18px 18px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; animation: sheet-up 0.25s ease-out; }
+.cant__icon { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--pen); color: var(--paper); }
+.cant__icon svg { width: 30px; height: 30px; }
+.cant__title { margin: 0; font: 800 1.6rem/1.1 var(--print); font-stretch: 80%; text-transform: uppercase; }
+.cant__body { margin: 0 0 6px; font-size: 1rem; }
+@keyframes sheet-up { from { transform: translateY(100%); } }
 .zone-map__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-left: 6px; }
 .zone-map__swatch:first-child { margin-left: 0; }
 .zone-map__swatch--zone { background: rgb(215 38 46 / 0.3); border: 2px solid var(--pen); }
@@ -74,7 +99,8 @@ input[type=range] { width: 100%; min-height: 36px; accent-color: var(--ink); }
 @keyframes drop-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
   .drop__anchor, .drop__ring, .drop__title, .drop__sub { animation: none; }
-  .anchor-card__dot { animation: none; }
+  .anchor-card__dot, .cant__panel { animation: none; }
+  .spot__pin { transition: none; }
 }
 .rubric { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .rubric li { display: flex; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--rule); color: var(--pencil); }
