@@ -470,9 +470,7 @@ function wireEvents() {
       setText('start-error', parsed.error);
       return;
     }
-    geo.lastSentAt = 0;
-    sendLocation();
-    await act($('start-btn'), 'start-error', '/api/start', parsed.value);
+    await act($('start-btn'), 'start-error', '/api/start', { ...parsed.value, anchor: geo.fix ?? null });
   });
 
   $('phone-btn').addEventListener('click', (event) => {

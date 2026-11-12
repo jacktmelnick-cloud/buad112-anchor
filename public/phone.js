@@ -321,7 +321,7 @@ function freshFix() {
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       (e) => (e.code !== 1 && geo.fix ? resolve(geo.fix) : reject(new Error(e.code === 1 ? 'Location is blocked. Allow it for this page, then try again.' : 'Could not get your location. Try again outside.'))),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
     );
   });
 }
@@ -352,7 +352,7 @@ async function onStart(event) {
     geo.fix = await freshFix();
     const loc = await sendFix(true);
     if (!loc.ok) throw new Error(loc.error);
-    const body = { studyMinutes: minutes, radiusM, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
+    const body = { studyMinutes: minutes, radiusM, anchor: geo.fix, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
     if (tuition !== null) body.tuitionPerYear = tuition;
     if (deposit) body.deposit = deposit;
     body.quiet = data.get('quiet') === 'on';

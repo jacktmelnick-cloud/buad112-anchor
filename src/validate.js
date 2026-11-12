@@ -44,6 +44,13 @@ export function parseStart(body) {
   if (!Number.isInteger(radiusM) || radiusM < LIMITS.minRadiusM || radiusM > LIMITS.maxRadiusM) {
     return fail(`Zone size must be a whole number of meters from ${LIMITS.minRadiusM} to ${LIMITS.maxRadiusM}.`);
   }
+  // Where you were when you pressed start, read by that same tap, so it can't be a stale fix from earlier.
+  let anchor = null;
+  if (body.anchor !== undefined && body.anchor !== null) {
+    const fix = parseLocation(body.anchor);
+    if (!fix.ok) return fix;
+    anchor = fix.value;
+  }
   const mode = body.mode ?? 'mac';
   if (mode !== 'mac' && mode !== 'phone') return fail('Mode must be "mac" or "phone".');
   // Leaving the deposit empty means no money down and no deposit step.
@@ -60,6 +67,7 @@ export function parseStart(body) {
     radiusM,
     deposit,
     mode,
+    anchor,
   });
 }
 

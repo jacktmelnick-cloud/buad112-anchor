@@ -7,7 +7,7 @@ describe('parseStart', () => {
     const r = parseStart({ studyMinutes: 25, dollarsPerMinute: 2.5, courseName: '  BUAD 112 ' });
     assert.deepEqual(r, {
       ok: true,
-      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false, radiusM: 50, deposit: 0, mode: 'mac' },
+      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false, radiusM: 50, deposit: 0, mode: 'mac', anchor: null },
     });
   });
 
@@ -34,6 +34,12 @@ describe('parseStart', () => {
       assert.equal(r.ok, false, String(bad));
       assert.match(r.error, /zone size/i);
     }
+  });
+
+  test('takes the fix from the start tap as the anchor and rejects a bad one', () => {
+    const fix = { lat: 34.02, lng: -118.28, accuracy: 8 };
+    assert.deepEqual(parseStart({ studyMinutes: 10, anchor: fix }).value.anchor, fix);
+    assert.equal(parseStart({ studyMinutes: 10, anchor: { lat: 200, lng: 0, accuracy: 5 } }).ok, false);
   });
 
   test('fills defaults for missing optional fields', () => {

@@ -80,9 +80,10 @@ export function createIdle(demoSpeed = 1, currentFix = null) {
  * @param {{ studyMinutes: number, dollarsPerMinute: number, courseName: string }} config
  * @param {number} now
  */
-export function startSession(state, config, now) {
+export function startSession(state, { anchor: pinned = null, ...config }, now) {
   if (state.status === 'running') return state;
-  const current = state.location.current;
+  // The fix sent with the start tap is the anchor. Without one, fall back to the last fix if it's recent.
+  const current = pinned ? { ...pinned, at: now } : state.location.current;
   const fresh = current && Number.isFinite(current.at) && now - current.at <= ANCHOR_MAX_AGE_MS;
   const anchor = fresh ? { lat: current.lat, lng: current.lng, accuracy: current.accuracy } : null;
   return {
