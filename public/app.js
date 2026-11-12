@@ -441,9 +441,13 @@ function renderTuitionHint() {
 function readStartForm(form) {
   const data = new FormData(form);
   const studyMinutes = Number(data.get('studyMinutes'));
+  const radiusM = Number(data.get('radiusM'));
   const tuitionPerYear = parseTuition(data.get('tuitionPerYear'));
   if (!Number.isInteger(studyMinutes) || studyMinutes < 1 || studyMinutes > 240) {
     return { error: 'Minutes must be a whole number from 1 to 240.' };
+  }
+  if (!Number.isInteger(radiusM) || radiusM < 10 || radiusM > 400) {
+    return { error: 'Zone size must be a whole number of meters from 10 to 400.' };
   }
   if (tuitionPerYear === null) {
     return { error: "Enter your college's yearly tuition, like 70,000." };
@@ -453,7 +457,7 @@ function readStartForm(form) {
   if (deposit === null) {
     return { error: `Deposit must be an amount like 5 or 12.50, up to ${dollars(DEPOSIT_MAX)}, or left empty.` };
   }
-  return { value: { studyMinutes, tuitionPerYear, quiet, deposit, courseName: String(data.get('courseName') ?? '').trim() } };
+  return { value: { studyMinutes, radiusM, tuitionPerYear, quiet, deposit, courseName: String(data.get('courseName') ?? '').trim() } };
 }
 
 function wireEvents() {

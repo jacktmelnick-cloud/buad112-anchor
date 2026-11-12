@@ -7,7 +7,7 @@ describe('parseStart', () => {
     const r = parseStart({ studyMinutes: 25, dollarsPerMinute: 2.5, courseName: '  BUAD 112 ' });
     assert.deepEqual(r, {
       ok: true,
-      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false, deposit: 0, mode: 'mac' },
+      value: { studyMinutes: 25, dollarsPerMinute: 2.5, tuitionPerYear: null, courseName: 'BUAD 112', quiet: false, radiusM: 50, deposit: 0, mode: 'mac' },
     });
   });
 
@@ -24,6 +24,15 @@ describe('parseStart', () => {
       const r = parseStart({ studyMinutes: 25, tuitionPerYear: bad });
       assert.equal(r.ok, false, String(bad));
       assert.match(r.error, /tuition/i);
+    }
+  });
+
+  test('takes a zone size in whole meters and rejects one out of range', () => {
+    assert.equal(parseStart({ studyMinutes: 10, radiusM: 120 }).value.radiusM, 120);
+    for (const bad of [5, 401, 75.5, '100']) {
+      const r = parseStart({ studyMinutes: 10, radiusM: bad });
+      assert.equal(r.ok, false, String(bad));
+      assert.match(r.error, /zone size/i);
     }
   });
 

@@ -36,6 +36,8 @@ function render(s) {
   show('done', view === 'done');
   if (view === 'running') renderRunning(s);
   if (view === 'done') renderDone(s);
+  // The simulated distance has to reach past whatever zone size this session picked.
+  if (s.location?.radiusM) $('sim').max = Math.max(200, s.location.radiusM + 50);
   if (document.activeElement !== $('speed')) {
     $('speed').value = s.demoSpeed || 1;
     setText('speed-out', `${s.demoSpeed || 1}x`);

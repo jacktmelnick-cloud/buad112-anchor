@@ -341,6 +341,8 @@ async function onStart(event) {
   const minutes = Number(data.get('studyMinutes'));
   const tuition = parseMoney(String(data.get('tuitionPerYear')));
   const deposit = parseMoney(String(data.get('deposit')));
+  const radiusM = Number(data.get('radiusM'));
+  if (!Number.isInteger(radiusM) || radiusM < 10 || radiusM > 400) return setText('start-error', 'Zone size must be 10 to 400 meters.');
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) return setText('start-error', 'Minutes must be 1 to 240.');
   if (Number.isNaN(tuition)) return setText('start-error', 'Tuition must be a number.');
   if (Number.isNaN(deposit) || (deposit ?? 0) > (rules.depositMax ?? 10000)) return setText('start-error', 'Deposit must be a number up to the limit.');
@@ -350,7 +352,7 @@ async function onStart(event) {
     geo.fix = await freshFix();
     const loc = await sendFix(true);
     if (!loc.ok) throw new Error(loc.error);
-    const body = { studyMinutes: minutes, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
+    const body = { studyMinutes: minutes, radiusM, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
     if (tuition !== null) body.tuitionPerYear = tuition;
     if (deposit) body.deposit = deposit;
     body.quiet = data.get('quiet') === 'on';

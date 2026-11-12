@@ -189,6 +189,13 @@ describe('location and stopping', () => {
     assert.equal(done.endedEarly, true);
   });
 
+  test('uses the zone size picked at start', () => {
+    const s = setSimulatedDistance(running({ radiusM: 150 }), 120);
+    assert.equal(snapshot(s, T0).canStop, false);
+    assert.equal(snapshot(s, T0).location.radiusM, 150);
+    assert.equal(snapshot(setSimulatedDistance(s, 160), T0).canStop, true);
+  });
+
   test('going back to real location clears the simulated distance', () => {
     let s = setSimulatedDistance(updateLocation(running(), ANCHOR, T0), 80);
     s = setSimulatedDistance(s, null);

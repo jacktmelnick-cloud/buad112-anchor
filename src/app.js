@@ -125,7 +125,7 @@ export function createApp({ now = Date.now, effects, overlay = null, persist = n
       const t = now();
       const current = tick(state, t);
       if (current.status === 'running' && !snapshot(current, t).canStop) {
-        return conflict(`Stop is locked within ${RADIUS_M} m of where you started. Walk away to unlock it.`);
+        return conflict(`Stop is locked within ${current.config?.radiusM ?? RADIUS_M} m of where you started. Walk away to unlock it.`);
       }
       return apply((s, at) => stopSession(s, at));
     },

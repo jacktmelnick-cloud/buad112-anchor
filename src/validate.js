@@ -2,7 +2,7 @@
  * Input validation for everything that crosses the HTTP boundary.
  * Each parser returns `{ ok: true, value }` or `{ ok: false, error }` with a message fit to show a person.
  */
-import { DEFAULTS, LIMITS, DEMO_SPEED_MIN, DEMO_SPEED_MAX, CLASS_MINUTES_PER_YEAR } from './config.js';
+import { DEFAULTS, LIMITS, RADIUS_M, DEMO_SPEED_MIN, DEMO_SPEED_MAX, CLASS_MINUTES_PER_YEAR } from './config.js';
 import { DEPOSIT_MAX, isValidDeposit } from './deposit.js';
 
 const ok = (value) => ({ ok: true, value });
@@ -40,6 +40,10 @@ export function parseStart(body) {
   const name = cleaned || DEFAULTS.courseName;
   const quiet = body.quiet ?? false;
   if (typeof quiet !== 'boolean') return fail('Library mode must be on or off.');
+  const radiusM = body.radiusM ?? RADIUS_M;
+  if (!Number.isInteger(radiusM) || radiusM < LIMITS.minRadiusM || radiusM > LIMITS.maxRadiusM) {
+    return fail(`Zone size must be a whole number of meters from ${LIMITS.minRadiusM} to ${LIMITS.maxRadiusM}.`);
+  }
   const mode = body.mode ?? 'mac';
   if (mode !== 'mac' && mode !== 'phone') return fail('Mode must be "mac" or "phone".');
   // Leaving the deposit empty means no money down and no deposit step.
@@ -53,6 +57,7 @@ export function parseStart(body) {
     tuitionPerYear: hasTuition ? tuitionPerYear : null,
     courseName: name,
     quiet,
+    radiusM,
     deposit,
     mode,
   });

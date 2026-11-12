@@ -21,6 +21,8 @@ import { normalizePhrase } from './phrase.js';
 /** The session's ladder: library mode (quiet) has no sound steps and 20 s steps. */
 const depositOf = (state) => state.deposit ?? 0;
 const modeOf = (state) => (state.config?.mode === 'phone' ? 'phone' : 'mac');
+/** Sessions saved before the zone size was a setting use the default. */
+const radiusOf = (state) => state.config?.radiusM ?? RADIUS_M;
 const ladderOf = (state) => ladderFor(state.config?.quiet === true, depositOf(state) > 0, modeOf(state));
 
 /** The punishment clock stops at the top step; the timer you see keeps counting. */
@@ -127,7 +129,7 @@ export function tick(state, now) {
   if (state.status !== 'running') return state;
   const realDt = Math.min(MAX_TICK_GAP_MS, Math.max(0, now - state.lastTickAt));
   const dt = realDt * state.demoSpeed;
-  const away = isAway(state.location);
+  const away = isAway(state);
   // Away from the anchor the phone is just a phone, and the study timer waits for you to come back.
   const counts = state.onPhone && !away;
   const ladder = ladderOf(state);
@@ -164,7 +166,7 @@ export function setPhone(state, onPhone, now) {
   if (current.status !== 'running' || current.onPhone === onPhone) return current;
   if (onPhone) {
     // Away, the phone is free and nothing counts. At the anchor it's a pickup, resuming where you left off.
-    if (isAway(current.location)) return { ...current, onPhone: true };
+    if (isAway(current)) return { ...current, onPhone: true };
     return { ...current, onPhone: true, pickups: current.pickups + 1, pickupCounted: true };
   }
   // The snitch sends once per session: a running countdown just pauses, a sent one stays sent.
@@ -206,8 +208,8 @@ export function setSimulatedDistance(state, meters) {
  */
 function settleAway(before, after) {
   if (after.status !== 'running') return after;
-  const wasAway = isAway(before.location);
-  const nowAway = isAway(after.location);
+  const wasAway = isAway(before);
+  const nowAway = isAway(after);
   if (!wasAway && nowAway && confessionUp(before)) return { ...after, confessionDone: true };
   if (wasAway && !nowAway && after.onPhone && !after.pickupCounted) {
     return { ...after, pickups: after.pickups + 1, pickupCounted: true };
@@ -229,7 +231,7 @@ export function setDemoSpeed(state, speed) {
  * @param {number} now
  */
 export function confess(state, text, now) {
-  if (state.status !== 'running' || !state.onPhone || isAway(state.location)) return state;
+  if (state.status !== 'running' || !state.onPhone || isAway(state)) return state;
   if (normalizePhrase(text) !== normalizePhrase(CONFESSION_PHRASE)) return state;
   return { ...state, confessionDone: true };
 }
@@ -241,7 +243,7 @@ export function confess(state, text, now) {
  * @param {string} text
  */
 export function confessAtGate(state, text) {
-  if (state.status !== 'running' || state.confessionDone || isAway(state.location)) return state;
+  if (state.status !== 'running' || state.confessionDone || isAway(state)) return state;
   const ladder = ladderOf(state);
   if (!ladder.reached(ladder.levelFor(state.pressureMs), 'confess')) return state;
   if (normalizePhrase(text) !== normalizePhrase(CONFESSION_PHRASE)) return state;
@@ -255,23 +257,25 @@ function distanceFromAnchor(location) {
 }
 
 /** How far you must be before Stop unlocks: the radius plus a GPS margin when the location is real. */
-function unlockDistance(location) {
-  if (location.simulatedM !== null || !location.anchor || !location.current) return RADIUS_M;
+function unlockDistance(state) {
+  const { location } = state;
+  const radius = radiusOf(state);
+  if (location.simulatedM !== null || !location.anchor || !location.current) return radius;
   const accuracy = Math.max(location.anchor.accuracy ?? 0, location.current.accuracy ?? 0);
-  return RADIUS_M + Math.min(MAX_ACCURACY_MARGIN_M, accuracy);
+  return radius + Math.min(MAX_ACCURACY_MARGIN_M, accuracy);
 }
 
 /** Clearly past the unlock distance. Unknown location counts as at the anchor. */
-function isAway(location) {
-  const distance = distanceFromAnchor(location);
-  return distance !== null && distance > unlockDistance(location);
+function isAway(state) {
+  const distance = distanceFromAnchor(state.location);
+  return distance !== null && distance > unlockDistance(state);
 }
 
-const canStopAt = (state) => state.status === 'running' && isAway(state.location);
+const canStopAt = (state) => state.status === 'running' && isAway(state);
 
 /** The confession popup is showing: on the phone at the anchor, at its step, and not done yet. */
 function confessionUp(state) {
-  const counting = state.status === 'running' && state.onPhone && !isAway(state.location);
+  const counting = state.status === 'running' && state.onPhone && !isAway(state);
   const ladder = ladderOf(state);
   return counting && !state.confessionDone && ladder.reached(ladder.levelFor(state.pressureMs), 'confess');
 }
@@ -362,9 +366,9 @@ export function snapshot(state, now) {
   const ladder = ladderOf(state);
   const level = ladder.levelFor(state.pressureMs);
   const distance = distanceFromAnchor(state.location);
-  const unlockAtM = unlockDistance(state.location);
+  const unlockAtM = unlockDistance(state);
   const running = state.status === 'running';
-  const away = running && isAway(state.location);
+  const away = running && isAway(state);
   const phoneCounts = state.onPhone && !away;
   const paused = running && !phoneCounts && state.stintMs > 0;
   const rate = state.config?.dollarsPerMinute ?? 0;
@@ -400,7 +404,7 @@ export function snapshot(state, now) {
       accuracyM: state.location.current?.accuracy ?? null,
       simulated: state.location.simulatedM !== null,
       inside: distance === null || distance <= unlockAtM,
-      radiusM: RADIUS_M,
+      radiusM: radiusOf(state),
       unlockAtM,
     },
     canStop: canStopAt(state),
