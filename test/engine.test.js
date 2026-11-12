@@ -197,6 +197,13 @@ describe('location and stopping', () => {
     assert.equal('anchor' in s.config, false);
   });
 
+  test('reports location in whole meters', () => {
+    let s = startSession(createIdle(), { ...CONFIG, anchor: { ...ANCHOR, accuracy: 9.11 } }, T0);
+    s = updateLocation(s, { lat: ANCHOR.lat + 0.00013, lng: ANCHOR.lng, accuracy: 7.4 }, T0 + 1000);
+    const loc = snapshot(s, T0 + 1000).location;
+    for (const key of ['distanceM', 'accuracyM', 'unlockAtM']) assert.ok(Number.isInteger(loc[key]), `${key} ${loc[key]}`);
+  });
+
   test('uses the zone size picked at start', () => {
     const s = setSimulatedDistance(running({ radiusM: 150 }), 120);
     assert.equal(snapshot(s, T0).canStop, false);

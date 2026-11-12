@@ -7,6 +7,12 @@ const LOCATION_SEND_MS = 2000;
 /** A GPS fix older than this shows the live dot as stale. */
 const STALE_FIX_MS = 5000;
 const DROP_MS = 2300;
+/** Live position: GPS readings from this long ago are blended, so the dot doesn't jump around. */
+const SMOOTH_MS = 3000;
+/** Dropping the anchor listens to GPS for up to this long, and stops early once a reading is this good. */
+const ANCHOR_SAMPLE_MS = 6000;
+const ANCHOR_GOOD_M = 10;
+const ANCHOR_MIN_MS = 1500;
 const KEY_STORE = 'anchor-key';
 
 let memoryKey = '';
@@ -18,7 +24,7 @@ let gateTimer = null;
 let gateSeconds = 0;
 let gatePassed = false;
 let lockedOpen = false;
-const geo = { fix: null, at: 0, lastSentAt: 0, error: '' };
+const geo = { fix: null, at: 0, samples: [], lastSentAt: 0, error: '' };
 
 /* ---------- key ---------- */
 
@@ -404,12 +410,31 @@ function sendFix(force = false) {
   return api('/api/location', geo.fix);
 }
 
+const sample = (p) => ({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });
+
+/**
+ * Several GPS readings into one: the sloppy ones (worse than twice the best) are dropped and the rest are
+ * averaged, weighting each by how sure the phone was (1 / accuracy squared). Reports the best accuracy seen.
+ */
+function blend(samples) {
+  const best = Math.min(...samples.map((s) => s.accuracy));
+  const keep = samples.filter((s) => s.accuracy <= Math.max(best * 2, best + 5));
+  let w = 0; let lat = 0; let lng = 0;
+  for (const s of keep) {
+    const k = 1 / Math.max(1, s.accuracy) ** 2;
+    w += k; lat += s.lat * k; lng += s.lng * k;
+  }
+  return { lat: lat / w, lng: lng / w, accuracy: best };
+}
+
 function startLocation() {
   if (!navigator.geolocation) { geo.error = 'This browser has no location.'; return; }
   navigator.geolocation.watchPosition(
     (p) => {
-      geo.fix = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
-      geo.at = Date.now();
+      const now = Date.now();
+      geo.samples = [...geo.samples.filter((s) => now - s.t <= SMOOTH_MS), { ...sample(p), t: now }];
+      geo.fix = blend(geo.samples);
+      geo.at = now;
       geo.error = '';
     },
     (e) => { geo.error = e.code === 1 ? 'Location is blocked. Allow it for this page in Settings, then reload.' : 'Could not get your location.'; },
@@ -423,13 +448,37 @@ function startLocation() {
   }, LIVE_MS);
 }
 
-function freshFix() {
+/**
+ * Where to drop the anchor: listen to GPS for a few seconds (it sharpens as it goes) and blend the best readings.
+ * Stops early once a reading is good to ANCHOR_GOOD_M. `onProgress` gets the best accuracy so far.
+ */
+function preciseFix(onProgress) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('This browser has no location.'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => { geo.at = Date.now(); resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }); },
-      (e) => (e.code !== 1 && geo.fix ? resolve(geo.fix) : reject(new Error(e.code === 1 ? 'Location is blocked. Allow it for this page, then try again.' : 'Could not get your location. Try again outside.'))),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+    const started = Date.now();
+    const samples = [];
+    let done = false;
+    let watchId = null;
+    const finish = (error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (samples.length) { geo.at = Date.now(); return resolve(blend(samples)); }
+      if (error?.code !== 1 && geo.fix) return resolve(geo.fix);
+      reject(new Error(error?.code === 1 ? 'Location is blocked. Allow it for this page, then try again.' : 'Could not get your location. Try again outside.'));
+    };
+    const timer = setTimeout(finish, ANCHOR_SAMPLE_MS);
+    // A good reading can arrive before the minimum wait, and GPS may not send another one.
+    setTimeout(() => { if (samples.some((s) => s.accuracy <= ANCHOR_GOOD_M)) finish(); }, ANCHOR_MIN_MS);
+    watchId = navigator.geolocation.watchPosition(
+      (p) => {
+        samples.push(sample(p));
+        onProgress(Math.min(...samples.map((s) => s.accuracy)));
+        if (p.coords.accuracy <= ANCHOR_GOOD_M && Date.now() - started >= ANCHOR_MIN_MS) finish();
+      },
+      (e) => { if (e.code === 1) finish(e); },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: ANCHOR_SAMPLE_MS },
     );
   });
 }
@@ -457,7 +506,8 @@ async function onStart(event) {
   btn.disabled = true;
   setText('start-error', '');
   try {
-    geo.fix = await freshFix();
+    setText('start-btn', 'Finding your exact spot...');
+    geo.fix = await preciseFix((best) => setText('start-btn', `Finding your exact spot... ${Math.round(best)} m`));
     const loc = await sendFix(true);
     if (!loc.ok) throw new Error(loc.error);
     const body = { studyMinutes: minutes, radiusM, anchor: geo.fix, mode: 'phone', courseName: String(data.get('courseName')).trim() || 'BUAD 112' };
@@ -473,6 +523,7 @@ async function onStart(event) {
     setText('start-error', err.message);
   } finally {
     btn.disabled = false;
+    setText('start-btn', 'Drop anchor & start');
   }
 }
 

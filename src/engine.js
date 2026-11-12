@@ -403,12 +403,13 @@ export function snapshot(state, now) {
       hasAnchor: state.location.anchor !== null,
       // So the phone can redraw its distance from live GPS between server updates. Guests never see it.
       anchor: state.location.anchor,
-      distanceM: distance,
-      accuracyM: state.location.current?.accuracy ?? null,
+      // Whole meters for people; inside/away still use the exact numbers.
+      distanceM: distance === null ? null : Math.round(distance),
+      accuracyM: state.location.current ? Math.round(state.location.current.accuracy) : null,
       simulated: state.location.simulatedM !== null,
       inside: distance === null || distance <= unlockAtM,
       radiusM: radiusOf(state),
-      unlockAtM,
+      unlockAtM: Math.round(unlockAtM),
     },
     canStop: canStopAt(state),
     away,
