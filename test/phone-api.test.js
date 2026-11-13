@@ -183,8 +183,10 @@ describe('phone mode over the tunnel', () => {
     assert.equal(app.state().canStop, true);
   });
 
-  test('the pairing code is only for the Mac', async () => {
-    assert.equal((await remote('GET', '/api/connect')).status, 403);
+  test('the pairing code is only for the Mac or the owner key', async () => {
+    assert.equal((await remote('GET', '/api/connect')).status, 200);
+    assert.equal((await remote('GET', '/api/connect', { key: 'not-the-key' })).status, 403);
+    assert.equal((await remote('GET', '/api/connect', { key: GUEST })).status, 403);
   });
 
   test('an app open with no session does nothing', async () => {

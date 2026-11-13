@@ -1,4 +1,5 @@
-// Anchor presenter screen (projector). Runs on the Mac at localhost, so no key is needed.
+// Anchor presenter screen (projector). On the Mac at localhost no key is needed; anywhere else
+// (a classroom computer through the tunnel) open it with ?k=<owner key>.
 const $ = (id) => document.getElementById(id);
 const setText = (id, t) => { const el = $(id); if (el.textContent !== t) el.textContent = t; };
 const show = (id, on) => { $(id).hidden = !on; };
@@ -17,9 +18,13 @@ const clock = (ms) => {
 };
 const money = (n) => `$${Math.max(0, Number(n) || 0).toFixed(2)}`;
 
+const KEY = new URLSearchParams(location.search).get('k') || '';
+const keyed = (path) => (KEY ? `${path}${path.includes('?') ? '&' : '?'}k=${encodeURIComponent(KEY)}` : path);
+const get = (path) => fetch(keyed(path));
+
 async function post(path, body) {
   try {
-    await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    await fetch(keyed(path), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   } catch { /* server restarting */ }
 }
 
@@ -120,7 +125,7 @@ function renderDone(s) {
 
 async function loadPairing() {
   try {
-    const data = (await (await fetch('/api/connect')).json()).data;
+    const data = (await (await get('/api/connect')).json()).data;
     setText('qr-err', data?.error || '');
     if (data?.guestUrl) {
       guestSvg = data.guestQrSvg;
@@ -175,14 +180,14 @@ function wire() {
 
 async function init() {
   try {
-    rules = (await (await fetch('/api/rules')).json()).data;
+    rules = (await (await get('/api/rules')).json()).data;
   } catch {
     setText('qr-err', 'Anchor is not answering. Is npm start running?');
     return;
   }
   wire();
   loadPairing();
-  const es = new EventSource('/events');
+  const es = new EventSource(keyed('/events'));
   es.onmessage = (e) => { try { render(JSON.parse(e.data)); } catch { /* bad frame */ } };
 }
 

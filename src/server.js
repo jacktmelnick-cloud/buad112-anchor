@@ -285,7 +285,8 @@ export function createHttpServer({
     if (!local && !keyed && !(token && isPage)) return failure(res, 403, 'Anchor only answers on localhost.');
 
     if (req.method === 'GET' && pathname === '/api/connect') {
-      return local ? success(res, connect()) : failure(res, 403, 'Only the Mac can show the pairing code.');
+      // The owner key already opens everything, so a presenter screen opened with it (a classroom computer) gets the QR too.
+      return local || keyed ? success(res, connect()) : failure(res, 403, 'Only the Mac can show the pairing code.');
     }
     if (req.method === 'GET' && pathname === '/api/phone/now') return success(res, app.phoneNow());
     if (req.method === 'GET' && pathname === '/api/state') return success(res, app.state());
